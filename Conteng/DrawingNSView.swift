@@ -19,6 +19,27 @@ class DrawingNSView: NSView {
     var currentStroke: Stroke?
     var strokeWidth: CGFloat = 5.0
     var strokeColor: NSColor = .red
+    var cursorLocation: CGPoint?
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        self.trackingAreas.forEach { self.removeTrackingArea($0) }
+        let area = NSTrackingArea(rect: self.bounds,
+                                  options: [.activeAlways, .mouseMoved, .mouseEnteredAndExited, .inVisibleRect],
+                                  owner: self,
+                                  userInfo: nil)
+        self.addTrackingArea(area)
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        cursorLocation = convert(event.locationInWindow, from: nil)
+        needsDisplay = true
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        cursorLocation = nil
+        needsDisplay = true
+    }
     
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -56,12 +77,14 @@ class DrawingNSView: NSView {
         let point = convert(event.locationInWindow, from: nil)
         currentStroke = Stroke(points: [point], width: strokeWidth, color: strokeColor)
         needsDisplay = true
+        cursorLocation = nil
     }
 
     override func mouseDragged(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         currentStroke?.points.append(point)
         needsDisplay = true
+        cursorLocation = nil
     }
 
     override func mouseUp(with event: NSEvent) {
@@ -76,13 +99,18 @@ class DrawingNSView: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
-        // Lukis semua stroke lama
-        for stroke in strokes {
-            drawSmoothPath(stroke)
-        }
-        // Lukis currentStroke (real-time)
-        if let stroke = currentStroke {
-            drawSmoothPath(stroke)
+        // Lukis stroke macam biasa
+        for stroke in strokes { drawSmoothPath(stroke) }
+        if let stroke = currentStroke { drawSmoothPath(stroke) }
+
+        // --- Lukis dot indicator pada cursor
+        if let loc = cursorLocation {
+            let dotRadius: CGFloat = 5
+            let dotRect = NSRect(x: loc.x - dotRadius, y: loc.y - dotRadius, width: dotRadius*2, height: dotRadius*2)
+            let path = NSBezierPath(ovalIn: dotRect)
+            NSColor.systemRed.setFill()
+            path.fill()
+            // Optionally, boleh tukar color ikut strokeColor, dan saiz ikut strokeWidth.
         }
     }
 
@@ -122,7 +150,7 @@ class DrawingNSView: NSView {
 
         // Stroke Width submenu
         let widthMenu = NSMenu(title: "Stroke Width")
-        for width in [2, 4, 6, 8, 10] {
+        for width in [2, 4, 5, 6, 7, 8, 10] {
             let item = NSMenuItem(title: "\(width) px", action: #selector(setStrokeWidth(_:)), keyEquivalent: "")
             item.representedObject = width
             item.target = self

@@ -34,6 +34,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func makeMenu() -> NSMenu {
         let menu = NSMenu()
 
+        menu.addItem(withTitle: "Draw (Option+Tab)", action: #selector(toggleOverlayFromMenu), keyEquivalent: "")
+
+        menu.addItem(NSMenuItem.separator())
+
         menu.addItem(withTitle: "Undo", action: #selector(undoStroke), keyEquivalent: "")
         menu.addItem(withTitle: "Clear", action: #selector(clearAll), keyEquivalent: "")
 
@@ -117,6 +121,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if let color = sender.representedObject as? NSColor {
             NotificationCenter.default.post(name: .menuSetColor, object: color)
         }
+    }
+
+    @objc func toggleOverlayFromMenu() {
+        toggleOverlay()
     }
 
     @objc func quitApp() {

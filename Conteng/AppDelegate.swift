@@ -90,6 +90,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 window?.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
                 window?.contentView = hostingView
             }
+            // --- Tambah baris ni sebelum tunjuk window
+            NotificationCenter.default.post(name: .menuClear, object: nil)
             window?.makeKeyAndOrderFront(nil)
             isOverlayVisible = true
         }

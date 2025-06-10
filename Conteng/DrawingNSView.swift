@@ -105,12 +105,11 @@ class DrawingNSView: NSView {
 
         // --- Lukis dot indicator pada cursor
         if let loc = cursorLocation {
-            let dotRadius: CGFloat = 5
+            let dotRadius: CGFloat = strokeWidth / 2  // Size based on stroke width
             let dotRect = NSRect(x: loc.x - dotRadius, y: loc.y - dotRadius, width: dotRadius*2, height: dotRadius*2)
             let path = NSBezierPath(ovalIn: dotRect)
-            NSColor.systemRed.setFill()
+            strokeColor.setFill()  // Use current stroke color instead of systemRed
             path.fill()
-            // Optionally, boleh tukar color ikut strokeColor, dan saiz ikut strokeWidth.
         }
     }
 
@@ -211,6 +210,14 @@ class DrawingNSView: NSView {
     @objc func setStrokeColor(_ sender: NSMenuItem) {
         if let color = sender.representedObject as? NSColor {
             strokeColor = color
+
+            // --- PAKSA UPDATE CURSOR INDICATOR SEKARANG JUGA
+            if let window = self.window {
+                let mouseLoc = window.mouseLocationOutsideOfEventStream
+                let viewLoc = convert(mouseLoc, from: nil)
+                cursorLocation = viewLoc
+            }
+            needsDisplay = true
         }
     }
 }

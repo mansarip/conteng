@@ -63,7 +63,7 @@ class DrawingNSView: NSView {
         self.localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self = self else { return event }
             
-            // Check for W and E keys without requiring window focus
+            // Check for shortcut keys without requiring window focus
             if let keyChar = event.charactersIgnoringModifiers?.lowercased().first {
                 switch keyChar {
                 case "w": // Decrease width
@@ -72,12 +72,39 @@ class DrawingNSView: NSView {
                 case "e": // Increase width
                     self.increaseStrokeWidth()
                     return nil // Event handled
+                case "r": // Rotate through colors
+                    self.rotateColors()
+                    return nil // Event handled
                 default:
                     break
                 }
             }
             
             return event // Not our shortcut, pass the event along
+        }
+    }
+
+    func rotateColors() {
+        // Define available colors in the rotation sequence
+        let availableColors: [NSColor] = [.red, .blue, .green, .black]
+        
+        // Find the current color in the sequence
+        var currentIndex = availableColors.firstIndex { $0.isClose(to: strokeColor) } ?? -1
+        
+        // Move to next color (or back to the beginning)
+        currentIndex = (currentIndex + 1) % availableColors.count
+        
+        // Set the new color
+        strokeColor = availableColors[currentIndex]
+        
+        // Update cursor indicator right away if visible
+        if cursorLocation != nil {
+            if let window = self.window {
+                let mouseLoc = window.mouseLocationOutsideOfEventStream
+                let viewLoc = convert(mouseLoc, from: nil)
+                cursorLocation = viewLoc
+            }
+            needsDisplay = true
         }
     }
 
@@ -256,6 +283,13 @@ class DrawingNSView: NSView {
         }
         let colorItem = NSMenuItem(title: "Color", action: nil, keyEquivalent: "")
         colorItem.submenu = colorMenu
+
+        // Add a color rotation option at the end of color menu
+        colorMenu.addItem(NSMenuItem.separator())
+        let rotateItem = NSMenuItem(title: "Rotate Colors (R)", action: #selector(rotateColorsAction), keyEquivalent: "")
+        rotateItem.target = self
+        colorMenu.addItem(rotateItem)
+
         menu.addItem(colorItem)
         
         // --- Separator & Quit
@@ -312,6 +346,10 @@ class DrawingNSView: NSView {
     @objc func increaseWidthAction() {
         increaseStrokeWidth()
     }
+
+    @objc func rotateColorsAction() {
+        rotateColors()
+    }
 }
 
 // MARK: - SwiftUI Representable
@@ -323,5 +361,26 @@ struct DrawingView: NSViewRepresentable {
 
     func updateNSView(_ nsView: DrawingNSView, context: Context) {
         // Nothing to update for now
+    }
+}
+
+extension NSColor {
+    func isClose(to color: NSColor) -> Bool {
+        // Convert both colors to the same color space for comparison
+        let c1 = self.usingColorSpace(.sRGB)!
+        let c2 = color.usingColorSpace(.sRGB)!
+        
+        // Get the components
+        var r1: CGFloat = 0, g1: CGFloat = 0, b1: CGFloat = 0, a1: CGFloat = 0
+        var r2: CGFloat = 0, g2: CGFloat = 0, b2: CGFloat = 0, a2: CGFloat = 0
+        
+        c1.getRed(&r1, green: &g1, blue: &b1, alpha: &a1)
+        c2.getRed(&r2, green: &g2, blue: &b2, alpha: &a2)
+        
+        // Calculate the difference - colors are "close" if components are within tolerance
+        let tolerance: CGFloat = 0.1
+        return abs(r1 - r2) < tolerance && 
+               abs(g1 - g2) < tolerance && 
+               abs(b1 - b2) < tolerance
     }
 }

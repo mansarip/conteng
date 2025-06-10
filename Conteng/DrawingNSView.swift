@@ -44,11 +44,84 @@ class DrawingNSView: NSView {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         setupMenuObservers()
+        setupKeyboardShortcuts()
     }
     
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         setupMenuObservers()
+        setupKeyboardShortcuts()
+    }
+
+    func setupKeyboardShortcuts() {
+        // Remove any existing monitor first to avoid duplicates
+        if let existingMonitor = self.localEventMonitor {
+            NSEvent.removeMonitor(existingMonitor)
+            self.localEventMonitor = nil
+        }
+        
+        self.localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self = self else { return event }
+            
+            // Check for W and E keys without requiring window focus
+            if let keyChar = event.charactersIgnoringModifiers?.lowercased().first {
+                switch keyChar {
+                case "w": // Decrease width
+                    self.decreaseStrokeWidth()
+                    return nil // Event handled
+                case "e": // Increase width
+                    self.increaseStrokeWidth()
+                    return nil // Event handled
+                default:
+                    break
+                }
+            }
+            
+            return event // Not our shortcut, pass the event along
+        }
+    }
+
+    // Add property to store the monitor
+    private var localEventMonitor: Any?
+
+    // Make sure to remove the monitor in deinit
+    deinit {
+        if let monitor = localEventMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    func decreaseStrokeWidth() {
+        let availableWidths = [2, 4, 5, 6, 7, 8, 10]
+        // Find current width or next smaller
+        var newWidth: Int = 2 // Default to smallest
+        
+        for width in availableWidths.sorted(by: >) {
+            if width < Int(strokeWidth) {
+                newWidth = width
+                break
+            }
+        }
+        
+        strokeWidth = CGFloat(newWidth)
+        needsDisplay = true
+    }
+
+    func increaseStrokeWidth() {
+        let availableWidths = [2, 4, 5, 6, 7, 8, 10]
+        // Find current width or next larger
+        var newWidth: Int = 10 // Default to largest
+        
+        for width in availableWidths.sorted() {
+            if width > Int(strokeWidth) {
+                newWidth = width
+                break
+            }
+        }
+        
+        strokeWidth = CGFloat(newWidth)
+        needsDisplay = true
     }
     
     func setupMenuObservers() {
@@ -149,12 +222,23 @@ class DrawingNSView: NSView {
 
         // Stroke Width submenu
         let widthMenu = NSMenu(title: "Stroke Width")
-        for width in [2, 4, 5, 6, 7, 8, 10] {
+        let widths = [2, 4, 5, 6, 7, 8, 10]
+        for width in widths {
             let item = NSMenuItem(title: "\(width) px", action: #selector(setStrokeWidth(_:)), keyEquivalent: "")
             item.representedObject = width
             item.target = self
             widthMenu.addItem(item)
         }
+
+        widthMenu.addItem(NSMenuItem.separator())
+        let decreaseItem = NSMenuItem(title: "Decrease Width (W)", action: #selector(decreaseWidthAction), keyEquivalent: "")
+        decreaseItem.target = self
+        widthMenu.addItem(decreaseItem)
+
+        let increaseItem = NSMenuItem(title: "Increase Width (E)", action: #selector(increaseWidthAction), keyEquivalent: "")
+        increaseItem.target = self
+        widthMenu.addItem(increaseItem)
+
         let widthItem = NSMenuItem(title: "Stroke Width", action: nil, keyEquivalent: "")
         widthItem.submenu = widthMenu
         menu.addItem(widthItem)
@@ -219,6 +303,14 @@ class DrawingNSView: NSView {
             }
             needsDisplay = true
         }
+    }
+
+    @objc func decreaseWidthAction() {
+        decreaseStrokeWidth()
+    }
+
+    @objc func increaseWidthAction() {
+        increaseStrokeWidth()
     }
 }
 

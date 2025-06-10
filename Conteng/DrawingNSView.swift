@@ -105,7 +105,7 @@ class DrawingNSView: NSView {
 
         // --- Lukis dot indicator pada cursor
         if let loc = cursorLocation {
-            let dotRadius: CGFloat = strokeWidth / 2  // Size based on stroke width
+            let dotRadius: CGFloat = strokeWidth - 1  // Size based on stroke width
             let dotRect = NSRect(x: loc.x - dotRadius, y: loc.y - dotRadius, width: dotRadius*2, height: dotRadius*2)
             let path = NSBezierPath(ovalIn: dotRect)
             strokeColor.setFill()  // Use current stroke color instead of systemRed

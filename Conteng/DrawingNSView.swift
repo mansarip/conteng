@@ -17,7 +17,7 @@ struct Stroke {
 class DrawingNSView: NSView {
     var strokes: [Stroke] = []
     var currentStroke: Stroke?
-    var strokeWidth: CGFloat = 3.0
+    var strokeWidth: CGFloat = 5.0
     var strokeColor: NSColor = .red
     
     override init(frame frameRect: NSRect) {

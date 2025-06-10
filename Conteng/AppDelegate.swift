@@ -75,7 +75,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             isOverlayVisible = false
         } else {
             if window == nil {
-                let screenRect = NSScreen.main!.frame
+                let screenRect = NSScreen.main!.visibleFrame
                 let hostingView = NSHostingView(rootView: ContentView())
                 window = NSWindow(
                     contentRect: screenRect,

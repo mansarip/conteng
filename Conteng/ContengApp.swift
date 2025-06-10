@@ -19,14 +19,3 @@ struct ContengApp: App {
         }
     }
 }
-
-class AppDelegate: NSObject, NSApplicationDelegate {
-    var window: OverlayWindow?
-
-    func applicationDidFinishLaunching(_ notification: Notification) {
-        let screenFrame = NSScreen.main!.frame
-        let contentView = NSHostingView(rootView: ContentView())
-        window = OverlayWindow(contentRect: screenFrame, contentView: contentView)
-        window?.makeKeyAndOrderFront(nil)
-    }
-}

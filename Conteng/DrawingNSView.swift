@@ -19,6 +19,36 @@ class DrawingNSView: NSView {
     var currentStroke: Stroke?
     var strokeWidth: CGFloat = 3.0
     var strokeColor: NSColor = .red
+    
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        setupMenuObservers()
+    }
+    
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        setupMenuObservers()
+    }
+    
+    func setupMenuObservers() {
+        NotificationCenter.default.addObserver(self, selector: #selector(handleUndo), name: .menuUndo, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(handleClear), name: .menuClear, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(handleSetWidth(_:)), name: .menuSetWidth, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(handleSetColor(_:)), name: .menuSetColor, object: nil)
+    }
+    
+    @objc func handleUndo() { undoStroke() }
+    @objc func handleClear() { clearAll() }
+    @objc func handleSetWidth(_ notification: Notification) {
+        if let width = notification.object as? Int {
+            strokeWidth = CGFloat(width)
+        }
+    }
+    @objc func handleSetColor(_ notification: Notification) {
+        if let color = notification.object as? NSColor {
+            strokeColor = color
+        }
+    }
 
     // MARK: - Mouse Events
 
@@ -116,11 +146,21 @@ class DrawingNSView: NSView {
         let colorItem = NSMenuItem(title: "Color", action: nil, keyEquivalent: "")
         colorItem.submenu = colorMenu
         menu.addItem(colorItem)
+        
+        // --- Separator & Quit
+        menu.addItem(NSMenuItem.separator())
+        let quitItem = NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "")
+        quitItem.target = self
+        menu.addItem(quitItem)
 
         return menu
     }
 
     // MARK: - Actions
+    
+    @objc func quitApp() {
+        NSApp.terminate(nil)
+    }
 
     @objc func undoStroke() {
         guard !strokes.isEmpty else { return }

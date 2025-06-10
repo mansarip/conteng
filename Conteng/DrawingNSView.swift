@@ -63,7 +63,20 @@ class DrawingNSView: NSView {
         self.localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self = self else { return event }
             
-            // Check for shortcut keys without requiring window focus
+            // Check for Escape key
+            if event.keyCode == 53 { // ESC key
+                self.clearAll()
+                return nil // Event handled
+            }
+            
+            // Check for CMD+Z (Undo)
+            if event.modifierFlags.contains(.command) && 
+            event.charactersIgnoringModifiers?.lowercased() == "z" {
+                self.undoStroke()
+                return nil // Event handled
+            }
+            
+            // Check for other shortcut keys without requiring window focus
             if let keyChar = event.charactersIgnoringModifiers?.lowercased().first {
                 switch keyChar {
                 case "w": // Decrease width
@@ -238,12 +251,12 @@ class DrawingNSView: NSView {
         let menu = NSMenu(title: "Options")
 
         // Undo
-        let undoItem = NSMenuItem(title: "Undo", action: #selector(undoStroke), keyEquivalent: "")
+        let undoItem = NSMenuItem(title: "Undo (⌘Z)", action: #selector(undoStroke), keyEquivalent: "")
         undoItem.target = self
         menu.addItem(undoItem)
 
         // Clear
-        let clearItem = NSMenuItem(title: "Clear", action: #selector(clearAll), keyEquivalent: "")
+        let clearItem = NSMenuItem(title: "Clear (Esc)", action: #selector(clearAll), keyEquivalent: "")
         clearItem.target = self
         menu.addItem(clearItem)
 

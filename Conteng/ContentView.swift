@@ -8,11 +8,9 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var strokes: [[CGPoint]] = []
-
     var body: some View {
         ZStack {
-            DrawingView(strokes: $strokes)
+            DrawingView()
                 .background(Color.clear)
         }
         .edgesIgnoringSafeArea(.all)

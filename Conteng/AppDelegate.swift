@@ -14,6 +14,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var window: NSWindow?
     var isOverlayVisible: Bool = false
     var hotKey: HotKey?
+    var aboutWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // 1. Create status bar icon
@@ -68,6 +69,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(colorItem)
 
         menu.addItem(NSMenuItem.separator())
+        menu.addItem(withTitle: "About", action: #selector(showAbout), keyEquivalent: "")
         menu.addItem(withTitle: "Quit", action: #selector(quitApp), keyEquivalent: "")
 
         return menu
@@ -130,6 +132,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func quitApp() {
         NSApp.terminate(nil)
+    }
+
+    @objc func showAbout() {
+        if aboutWindow == nil {
+            let content = NSHostingView(rootView: AboutWindow())
+            aboutWindow = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 320, height: 280),
+                styleMask: [.titled, .closable],
+                backing: .buffered, defer: false)
+            aboutWindow?.center()
+            aboutWindow?.contentView = content
+            aboutWindow?.title = "About"
+            aboutWindow?.isReleasedWhenClosed = false
+        }
+        aboutWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 }
 

@@ -19,7 +19,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // 1. Create status bar icon
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "pencil.tip", accessibilityDescription: nil)
+            button.image = NSImage(named: "StatusBarIcon") // Nama ikut image set kat assets
+            button.image?.isTemplate = true // biar auto ikut light/dark mode
         }
         statusItem.menu = makeMenu()
 

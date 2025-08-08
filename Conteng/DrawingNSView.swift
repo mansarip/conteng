@@ -20,6 +20,8 @@ class DrawingNSView: NSView {
     var strokeWidth: CGFloat = 5.0
     var strokeColor: NSColor = .red
     var cursorLocation: CGPoint?
+    var startPoint: CGPoint?
+    var isDrawingStraightLine: Bool = false
 
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
@@ -188,6 +190,11 @@ class DrawingNSView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
+        startPoint = point
+        
+        // Check if Shift is held for straight line drawing
+        isDrawingStraightLine = event.modifierFlags.contains(.shift)
+        
         currentStroke = Stroke(points: [point], width: strokeWidth, color: strokeColor)
         needsDisplay = true
         cursorLocation = nil
@@ -195,7 +202,15 @@ class DrawingNSView: NSView {
 
     override func mouseDragged(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
-        currentStroke?.points.append(point)
+        
+        if isDrawingStraightLine, let start = startPoint {
+            // For straight line, only keep start and current point
+            currentStroke?.points = [start, point]
+        } else {
+            // Normal curve drawing
+            currentStroke?.points.append(point)
+        }
+        
         needsDisplay = true
         cursorLocation = nil
     }
@@ -206,6 +221,10 @@ class DrawingNSView: NSView {
             currentStroke = nil
             needsDisplay = true
         }
+        
+        // Reset straight line mode
+        isDrawingStraightLine = false
+        startPoint = nil
     }
 
     // MARK: - Drawing
@@ -227,15 +246,33 @@ class DrawingNSView: NSView {
     }
 
     private func drawSmoothPath(_ stroke: Stroke) {
-        guard stroke.points.count > 1 else { return }
+        guard stroke.points.count > 1 else {
+            // Handle single point case
+            if stroke.points.count == 1 {
+                let point = stroke.points[0]
+                let dotRadius: CGFloat = stroke.width / 2
+                let dotRect = NSRect(x: point.x - dotRadius, y: point.y - dotRadius, width: dotRadius*2, height: dotRadius*2)
+                let path = NSBezierPath(ovalIn: dotRect)
+                stroke.color.setFill()
+                path.fill()
+            }
+            return
+        }
+        
         let path = NSBezierPath()
         path.move(to: stroke.points[0])
 
-        for i in 1..<stroke.points.count {
-            let prev = stroke.points[i - 1]
-            let curr = stroke.points[i]
-            let mid = CGPoint(x: (prev.x + curr.x) / 2, y: (prev.y + curr.y) / 2)
-            path.curve(to: mid, controlPoint1: prev, controlPoint2: curr)
+        // If it's a straight line (only 2 points), draw a straight line
+        if stroke.points.count == 2 {
+            path.line(to: stroke.points[1])
+        } else {
+            // Draw smooth curve for multiple points
+            for i in 1..<stroke.points.count {
+                let prev = stroke.points[i - 1]
+                let curr = stroke.points[i]
+                let mid = CGPoint(x: (prev.x + curr.x) / 2, y: (prev.y + curr.y) / 2)
+                path.curve(to: mid, controlPoint1: prev, controlPoint2: curr)
+            }
         }
 
         stroke.color.setStroke()

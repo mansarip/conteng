@@ -15,6 +15,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var isOverlayVisible: Bool = false
     var hotKey: HotKey?
     var aboutWindow: NSWindow?
+    var guidesWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // 1. Create status bar icon
@@ -85,6 +86,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(colorItem)
 
         menu.addItem(NSMenuItem.separator())
+        menu.addItem(withTitle: "Guides", action: #selector(showGuides), keyEquivalent: "")
         menu.addItem(withTitle: "About", action: #selector(showAbout), keyEquivalent: "")
         menu.addItem(withTitle: "Quit", action: #selector(quitApp), keyEquivalent: "")
 
@@ -151,6 +153,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func quitApp() {
         NSApp.terminate(nil)
+    }
+
+    @objc func showGuides() {
+        if guidesWindow == nil {
+            let content = NSHostingView(rootView: GuidesWindow())
+            guidesWindow = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 450, height: 500),
+                styleMask: [.titled, .closable, .resizable],
+                backing: .buffered, defer: false)
+            guidesWindow?.center()
+            guidesWindow?.contentView = content
+            guidesWindow?.title = "Guides"
+            guidesWindow?.isReleasedWhenClosed = false
+            guidesWindow?.minSize = NSSize(width: 400, height: 450)
+        }
+        guidesWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     @objc func showAbout() {

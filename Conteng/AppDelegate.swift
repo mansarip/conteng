@@ -88,6 +88,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(NSMenuItem.separator())
         menu.addItem(withTitle: "Guides", action: #selector(showGuides), keyEquivalent: "")
         menu.addItem(withTitle: "About", action: #selector(showAbout), keyEquivalent: "")
+
+        menu.addItem(NSMenuItem.separator())
         menu.addItem(withTitle: "Quit", action: #selector(quitApp), keyEquivalent: "")
 
         return menu

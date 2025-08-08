@@ -36,7 +36,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func makeMenu() -> NSMenu {
         let menu = NSMenu()
 
-        menu.addItem(withTitle: "Draw (Option+Tab)", action: #selector(toggleOverlayFromMenu), keyEquivalent: "")
+        let drawItem = NSMenuItem(title: "Draw", action: #selector(toggleOverlayFromMenu), keyEquivalent: "\t")
+        drawItem.keyEquivalentModifierMask = [.option]
+        drawItem.target = self
+        menu.addItem(drawItem)
 
         menu.addItem(NSMenuItem.separator())
 

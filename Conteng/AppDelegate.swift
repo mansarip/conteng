@@ -43,8 +43,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(NSMenuItem.separator())
 
-        menu.addItem(withTitle: "Undo", action: #selector(undoStroke), keyEquivalent: "")
-        menu.addItem(withTitle: "Clear", action: #selector(clearAll), keyEquivalent: "")
+        let undoItem = NSMenuItem(title: "Undo", action: #selector(undoStroke), keyEquivalent: "z")
+        undoItem.keyEquivalentModifierMask = [.command]
+        undoItem.target = self
+        menu.addItem(undoItem)
+        
+        let clearItem = NSMenuItem(title: "Clear", action: #selector(clearAll), keyEquivalent: "\u{001B}")
+        clearItem.target = self
+        menu.addItem(clearItem)
 
         let widthMenu = NSMenu(title: "Stroke Width")
         for width in [2, 4, 6, 8, 10] {

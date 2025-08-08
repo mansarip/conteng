@@ -43,7 +43,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func makeMenu() -> NSMenu {
         let menu = NSMenu()
 
-        let drawItem = NSMenuItem(title: "Draw", action: #selector(toggleOverlayFromMenu), keyEquivalent: "\t")
+        let drawItem = NSMenuItem(title: isOverlayVisible ? "Stop Drawing" : "Start Drawing", action: #selector(toggleOverlayFromMenu), keyEquivalent: "\t")
         drawItem.keyEquivalentModifierMask = [.option]
         drawItem.target = self
         menu.addItem(drawItem)
@@ -118,6 +118,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             window?.makeKeyAndOrderFront(nil)
             isOverlayVisible = true
         }
+        
+        // Update menu to reflect current state
+        statusItem.menu = makeMenu()
     }
 
     // MARK: - Menu Actions

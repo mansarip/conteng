@@ -1,5 +1,7 @@
 # Conteng
 
+![Conteng drawing overlay in action](preview.gif)
+
 A macOS screen annotation application that allows you to draw overlays on top of any application using a system-wide hotkey. Conteng runs as a menu bar utility with a transparent overlay window for drawing.
 
 **Current version:** 1.4

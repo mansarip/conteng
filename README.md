@@ -44,6 +44,7 @@ When the overlay is active:
 ## Requirements
 
 - macOS 11.5 or later
+- Apple Silicon or Intel Mac
 - Xcode 16.3 or later (for building from source)
 
 ## Building from Source
@@ -106,10 +107,29 @@ xcodebuild test -project Conteng.xcodeproj -scheme Conteng -destination 'platfor
 
 ## Installation
 
-1. Download or build the Conteng.app
-2. Move it to your Applications folder
-3. Launch the app - it will appear in your menu bar
-4. Use Option+Tab to activate the drawing overlay
+1. Download `Conteng-1.4-macOS-universal.zip` from the latest GitHub Release.
+2. Verify its SHA-256 checksum against the value published in the release notes:
+
+   ```bash
+   shasum -a 256 ~/Downloads/Conteng-1.4-macOS-universal.zip
+   ```
+
+3. Unzip it and move `Conteng.app` into the Applications folder.
+4. Launch Conteng. Its paintbrush icon will appear in the menu bar.
+5. Press Option+Tab to activate the drawing overlay.
+
+### Gatekeeper Notice
+
+Conteng is free and open-source software distributed without an Apple Developer Program account. The downloadable app is ad-hoc signed, but it is **not signed with an Apple Developer ID and is not notarized by Apple**. macOS will therefore warn that it cannot verify the developer or check the app for malicious software.
+
+Only continue if you downloaded Conteng from this repository and its SHA-256 checksum matches the release notes. After attempting to open the app once:
+
+1. Open **System Settings**.
+2. Select **Privacy & Security**.
+3. Scroll to the Security section and click **Open Anyway** for Conteng.
+4. Confirm by clicking **Open**.
+
+This creates an exception for Conteng without disabling Gatekeeper globally. See Apple's guide on [safely opening apps on macOS](https://support.apple.com/en-us/102445) for the security implications and current instructions.
 
 ## Architecture
 
@@ -143,8 +163,4 @@ The app uses a hybrid SwiftUI/AppKit architecture to provide system-wide overlay
 
 ## License
 
-[Add your license information here]
-
-## Contributing
-
-[Add contributing guidelines if applicable]
+Conteng is available under the [MIT License](LICENSE).

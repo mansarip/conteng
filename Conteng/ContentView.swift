@@ -8,9 +8,17 @@
 import SwiftUI
 
 struct ContentView: View {
+    let document: DrawingDocument
+    let preferences: DrawingPreferences
+    let canvasID: CanvasID
+
     var body: some View {
         ZStack {
-            DrawingView()
+            DrawingView(
+                document: document,
+                preferences: preferences,
+                canvasID: canvasID
+            )
                 .background(Color.clear)
         }
         .edgesIgnoringSafeArea(.all)

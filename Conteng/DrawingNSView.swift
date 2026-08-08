@@ -1,36 +1,53 @@
-//
-//  DrawingNSView.swift
-//  Conteng
-//
-//  Created by Luqman on 11/06/2025.
-//
 import SwiftUI
 
-// MARK: - Data Structure
-struct Stroke {
-    var points: [CGPoint]
-    var width: CGFloat
-    var color: NSColor
-}
+final class DrawingNSView: NSView {
+    private let document: DrawingDocument
+    private let preferences: DrawingPreferences
+    private let canvasID: CanvasID
 
-// MARK: - Main Drawing NSView
-class DrawingNSView: NSView {
-    var strokes: [Stroke] = []
-    var currentStroke: Stroke?
-    var strokeWidth: CGFloat = 5.0
-    var strokeColor: NSColor = .red
-    var cursorLocation: CGPoint?
-    var startPoint: CGPoint?
-    var isDrawingStraightLine: Bool = false
+    private var currentStroke: Stroke?
+    private var cursorLocation: CGPoint?
+    private var startPoint: CGPoint?
+    private var isDrawingStraightLine = false
+    private var localEventMonitor: Any?
+
+    override var acceptsFirstResponder: Bool { true }
+
+    init(
+        document: DrawingDocument,
+        preferences: DrawingPreferences,
+        canvasID: CanvasID
+    ) {
+        self.document = document
+        self.preferences = preferences
+        self.canvasID = canvasID
+        super.init(frame: .zero)
+        setupObservers()
+        setupKeyboardShortcuts()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    deinit {
+        if let localEventMonitor {
+            NSEvent.removeMonitor(localEventMonitor)
+        }
+        NotificationCenter.default.removeObserver(self)
+    }
 
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
-        self.trackingAreas.forEach { self.removeTrackingArea($0) }
-        let area = NSTrackingArea(rect: self.bounds,
-                                  options: [.activeAlways, .mouseMoved, .mouseEnteredAndExited, .inVisibleRect],
-                                  owner: self,
-                                  userInfo: nil)
-        self.addTrackingArea(area)
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(
+            NSTrackingArea(
+                rect: bounds,
+                options: [.activeAlways, .mouseMoved, .mouseEnteredAndExited, .inVisibleRect],
+                owner: self,
+                userInfo: nil
+            )
+        )
     }
 
     override func mouseMoved(with event: NSEvent) {
@@ -42,307 +59,203 @@ class DrawingNSView: NSView {
         cursorLocation = nil
         needsDisplay = true
     }
-    
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        setupMenuObservers()
-        setupKeyboardShortcuts()
-    }
-    
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        setupMenuObservers()
-        setupKeyboardShortcuts()
+
+    private func setupObservers() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleDocumentChange),
+            name: .drawingDocumentDidChange,
+            object: document
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handlePreferencesChange),
+            name: .drawingPreferencesDidChange,
+            object: preferences
+        )
     }
 
-    func setupKeyboardShortcuts() {
-        // Remove any existing monitor first to avoid duplicates
-        if let existingMonitor = self.localEventMonitor {
-            NSEvent.removeMonitor(existingMonitor)
-            self.localEventMonitor = nil
-        }
-        
-        self.localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self = self else { return event }
-            
-            // Check for Escape key
-            if event.keyCode == 53 { // ESC key
+    private func setupKeyboardShortcuts() {
+        localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, self.window?.isKeyWindow == true else { return event }
+
+            if event.keyCode == 53 { // Escape
                 self.clearAll()
-                return nil // Event handled
+                return nil
             }
-            
-            // Check for CMD+Z (Undo)
-            if event.modifierFlags.contains(.command) && 
-            event.charactersIgnoringModifiers?.lowercased() == "z" {
-                self.undoStroke()
-                return nil // Event handled
-            }
-            
-            // Check for other shortcut keys without requiring window focus
-            if let keyChar = event.charactersIgnoringModifiers?.lowercased().first {
-                switch keyChar {
-                case "w": // Decrease width
-                    self.decreaseStrokeWidth()
-                    return nil // Event handled
-                case "e": // Increase width
-                    self.increaseStrokeWidth()
-                    return nil // Event handled
-                case "r": // Rotate through colors
-                    self.rotateColors()
-                    return nil // Event handled
-                default:
-                    break
+
+            if event.modifierFlags.contains(.command),
+               event.charactersIgnoringModifiers?.lowercased() == "z" {
+                if event.modifierFlags.contains(.shift) {
+                    self.document.redo()
+                } else {
+                    self.document.undo()
                 }
+                return nil
             }
-            
-            return event // Not our shortcut, pass the event along
+
+            guard let key = event.charactersIgnoringModifiers?.lowercased().first else {
+                return event
+            }
+
+            switch key {
+            case "w":
+                preferences.decreaseStrokeWidth()
+                return nil
+            case "e":
+                preferences.increaseStrokeWidth()
+                return nil
+            case "r":
+                preferences.rotateStrokeColor()
+                return nil
+            default:
+                return event
+            }
         }
     }
 
-    func rotateColors() {
-        // Define available colors in the rotation sequence
-        let availableColors: [NSColor] = [.red, .blue, .green, .black]
-        
-        // Find the current color in the sequence
-        var currentIndex = availableColors.firstIndex { $0.isClose(to: strokeColor) } ?? -1
-        
-        // Move to next color (or back to the beginning)
-        currentIndex = (currentIndex + 1) % availableColors.count
-        
-        // Set the new color
-        strokeColor = availableColors[currentIndex]
-        
-        // Update cursor indicator right away if visible
-        if cursorLocation != nil {
-            if let window = self.window {
-                let mouseLoc = window.mouseLocationOutsideOfEventStream
-                let viewLoc = convert(mouseLoc, from: nil)
-                cursorLocation = viewLoc
-            }
-            needsDisplay = true
-        }
-    }
-
-    // Add property to store the monitor
-    private var localEventMonitor: Any?
-
-    // Make sure to remove the monitor in deinit
-    deinit {
-        if let monitor = localEventMonitor {
-            NSEvent.removeMonitor(monitor)
-        }
-        NotificationCenter.default.removeObserver(self)
-    }
-
-    func decreaseStrokeWidth() {
-        let availableWidths = [2, 4, 5, 6, 7, 8, 10]
-        // Find current width or next smaller
-        var newWidth: Int = 2 // Default to smallest
-        
-        for width in availableWidths.sorted(by: >) {
-            if width < Int(strokeWidth) {
-                newWidth = width
-                break
-            }
-        }
-        
-        strokeWidth = CGFloat(newWidth)
+    @objc private func handleDocumentChange() {
         needsDisplay = true
     }
 
-    func increaseStrokeWidth() {
-        let availableWidths = [2, 4, 5, 6, 7, 8, 10]
-        // Find current width or next larger
-        var newWidth: Int = 10 // Default to largest
-        
-        for width in availableWidths.sorted() {
-            if width > Int(strokeWidth) {
-                newWidth = width
-                break
-            }
-        }
-        
-        strokeWidth = CGFloat(newWidth)
+    @objc private func handlePreferencesChange() {
+        updateCursorLocation()
         needsDisplay = true
     }
-    
-    func setupMenuObservers() {
-        NotificationCenter.default.addObserver(self, selector: #selector(handleUndo), name: .menuUndo, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(handleClear), name: .menuClear, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(handleSetWidth(_:)), name: .menuSetWidth, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(handleSetColor(_:)), name: .menuSetColor, object: nil)
-    }
-    
-    @objc func handleUndo() { undoStroke() }
-    @objc func handleClear() { clearAll() }
-    @objc func handleSetWidth(_ notification: Notification) {
-        if let width = notification.object as? Int {
-            strokeWidth = CGFloat(width)
-        }
-    }
-    @objc func handleSetColor(_ notification: Notification) {
-        if let color = notification.object as? NSColor {
-            strokeColor = color
-        }
+
+    private func updateCursorLocation() {
+        guard let window else { return }
+        cursorLocation = convert(window.mouseLocationOutsideOfEventStream, from: nil)
     }
 
-    // MARK: - Mouse Events
+    // MARK: - Mouse events
 
     override func mouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(self)
+
         let point = convert(event.locationInWindow, from: nil)
         startPoint = point
-        
-        // Check if Shift is held for straight line drawing
         isDrawingStraightLine = event.modifierFlags.contains(.shift)
-        
-        currentStroke = Stroke(points: [point], width: strokeWidth, color: strokeColor)
-        needsDisplay = true
+        currentStroke = Stroke(
+            points: [point],
+            width: preferences.strokeWidth,
+            color: preferences.strokeColor
+        )
         cursorLocation = nil
+        needsDisplay = true
     }
 
     override func mouseDragged(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
-        
-        if isDrawingStraightLine, let start = startPoint {
-            // For straight line, only keep start and current point
-            currentStroke?.points = [start, point]
-        } else {
-            // Normal curve drawing
+
+        if isDrawingStraightLine, let startPoint {
+            currentStroke?.points = [startPoint, point]
+        } else if let lastPoint = currentStroke?.points.last,
+                  hypot(point.x - lastPoint.x, point.y - lastPoint.y) >= 0.5 {
             currentStroke?.points.append(point)
         }
-        
-        needsDisplay = true
+
         cursorLocation = nil
+        needsDisplay = true
     }
 
     override func mouseUp(with event: NSEvent) {
-        if let stroke = currentStroke, !stroke.points.isEmpty {
-            strokes.append(stroke)
-            currentStroke = nil
-            needsDisplay = true
+        let endPoint = convert(event.locationInWindow, from: nil)
+
+        if isDrawingStraightLine, let startPoint {
+            currentStroke?.points = [startPoint, endPoint]
+        } else if let lastPoint = currentStroke?.points.last,
+                  hypot(endPoint.x - lastPoint.x, endPoint.y - lastPoint.y) >= 0.5 {
+            currentStroke?.points.append(endPoint)
         }
-        
-        // Reset straight line mode
+
+        if let currentStroke, !currentStroke.points.isEmpty {
+            self.currentStroke = nil
+            document.add(currentStroke, to: canvasID)
+        }
+
         isDrawingStraightLine = false
         startPoint = nil
+        updateCursorLocation()
+        needsDisplay = true
     }
 
     // MARK: - Drawing
 
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
-        // Lukis stroke macam biasa
-        for stroke in strokes { drawSmoothPath(stroke) }
-        if let stroke = currentStroke { drawSmoothPath(stroke) }
 
-        // --- Lukis dot indicator pada cursor
-        if let loc = cursorLocation {
-            let dotRadius: CGFloat = strokeWidth - 1  // Size based on stroke width
-            let dotRect = NSRect(x: loc.x - dotRadius, y: loc.y - dotRadius, width: dotRadius*2, height: dotRadius*2)
-            let path = NSBezierPath(ovalIn: dotRect)
-            strokeColor.setFill()  // Use current stroke color instead of systemRed
-            path.fill()
+        for stroke in document.strokes(for: canvasID) {
+            draw(stroke)
+        }
+        if let currentStroke {
+            draw(currentStroke)
+        }
+
+        if let cursorLocation {
+            let radius = max(1, preferences.strokeWidth / 2)
+            let indicatorRect = NSRect(
+                x: cursorLocation.x - radius,
+                y: cursorLocation.y - radius,
+                width: radius * 2,
+                height: radius * 2
+            )
+            let indicator = NSBezierPath(ovalIn: indicatorRect)
+            preferences.strokeColor.nsColor.setFill()
+            indicator.fill()
         }
     }
 
-    private func drawSmoothPath(_ stroke: Stroke) {
+    private func draw(_ stroke: Stroke) {
         guard stroke.points.count > 1 else {
-            // Handle single point case
-            if stroke.points.count == 1 {
-                let point = stroke.points[0]
-                let dotRadius: CGFloat = stroke.width / 2
-                let dotRect = NSRect(x: point.x - dotRadius, y: point.y - dotRadius, width: dotRadius*2, height: dotRadius*2)
-                let path = NSBezierPath(ovalIn: dotRect)
-                stroke.color.setFill()
-                path.fill()
+            if let point = stroke.points.first {
+                let radius = stroke.width / 2
+                let dotRect = NSRect(
+                    x: point.x - radius,
+                    y: point.y - radius,
+                    width: radius * 2,
+                    height: radius * 2
+                )
+                stroke.color.nsColor.setFill()
+                NSBezierPath(ovalIn: dotRect).fill()
             }
             return
         }
-        
-        let path = NSBezierPath()
-        path.move(to: stroke.points[0])
 
-        // If it's a straight line (only 2 points), draw a straight line
-        if stroke.points.count == 2 {
-            path.line(to: stroke.points[1])
-        } else {
-            // Draw smooth curve for multiple points
-            for i in 1..<stroke.points.count {
-                let prev = stroke.points[i - 1]
-                let curr = stroke.points[i]
-                let mid = CGPoint(x: (prev.x + curr.x) / 2, y: (prev.y + curr.y) / 2)
-                path.curve(to: mid, controlPoint1: prev, controlPoint2: curr)
-            }
-        }
-
-        stroke.color.setStroke()
+        let path = StrokePathBuilder.makePath(points: stroke.points)
+        stroke.color.nsColor.setStroke()
         path.lineWidth = stroke.width
         path.lineCapStyle = .round
         path.lineJoinStyle = .round
         path.stroke()
     }
 
-    // MARK: - Context Menu
+    // MARK: - Context menu
 
     override func menu(for event: NSEvent) -> NSMenu? {
         let menu = NSMenu(title: "Options")
 
-        // Undo
-        let undoItem = NSMenuItem(title: "Undo (⌘Z)", action: #selector(undoStroke), keyEquivalent: "")
+        let undoItem = NSMenuItem(title: "Undo", action: #selector(undoStroke), keyEquivalent: "z")
+        undoItem.keyEquivalentModifierMask = [.command]
         undoItem.target = self
+        undoItem.isEnabled = document.canUndo
         menu.addItem(undoItem)
 
-        // Clear
-        let clearItem = NSMenuItem(title: "Clear (Esc)", action: #selector(clearAll), keyEquivalent: "")
+        let redoItem = NSMenuItem(title: "Redo", action: #selector(redoStroke), keyEquivalent: "z")
+        redoItem.keyEquivalentModifierMask = [.command, .shift]
+        redoItem.target = self
+        redoItem.isEnabled = document.canRedo
+        menu.addItem(redoItem)
+
+        let clearItem = NSMenuItem(title: "Clear", action: #selector(clearAll), keyEquivalent: "\u{001B}")
         clearItem.target = self
+        clearItem.isEnabled = !document.isEmpty
         menu.addItem(clearItem)
 
-        // Stroke Width submenu
-        let widthMenu = NSMenu(title: "Stroke Width")
-        let widths = [2, 4, 5, 6, 7, 8, 10]
-        for width in widths {
-            let item = NSMenuItem(title: "\(width) px", action: #selector(setStrokeWidth(_:)), keyEquivalent: "")
-            item.representedObject = width
-            item.target = self
-            widthMenu.addItem(item)
-        }
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(makeWidthMenuItem())
+        menu.addItem(makeColorMenuItem())
 
-        widthMenu.addItem(NSMenuItem.separator())
-        let decreaseItem = NSMenuItem(title: "Decrease Width (W)", action: #selector(decreaseWidthAction), keyEquivalent: "")
-        decreaseItem.target = self
-        widthMenu.addItem(decreaseItem)
-
-        let increaseItem = NSMenuItem(title: "Increase Width (E)", action: #selector(increaseWidthAction), keyEquivalent: "")
-        increaseItem.target = self
-        widthMenu.addItem(increaseItem)
-
-        let widthItem = NSMenuItem(title: "Stroke Width", action: nil, keyEquivalent: "")
-        widthItem.submenu = widthMenu
-        menu.addItem(widthItem)
-
-        // Color submenu
-        let colorMenu = NSMenu(title: "Color")
-        let colors: [(String, NSColor)] = [
-            ("Red", .red), ("Blue", .blue), ("Green", .green), ("Black", .black)
-        ]
-        for (name, color) in colors {
-            let item = NSMenuItem(title: name, action: #selector(setStrokeColor(_:)), keyEquivalent: "")
-            item.representedObject = color
-            item.target = self
-            colorMenu.addItem(item)
-        }
-        let colorItem = NSMenuItem(title: "Color", action: nil, keyEquivalent: "")
-        colorItem.submenu = colorMenu
-
-        // Add a color rotation option at the end of color menu
-        colorMenu.addItem(NSMenuItem.separator())
-        let rotateItem = NSMenuItem(title: "Rotate Colors (R)", action: #selector(rotateColorsAction), keyEquivalent: "")
-        rotateItem.target = self
-        colorMenu.addItem(rotateItem)
-
-        menu.addItem(colorItem)
-        
-        // --- Separator & Quit
         menu.addItem(NSMenuItem.separator())
         let quitItem = NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "")
         quitItem.target = self
@@ -351,86 +264,124 @@ class DrawingNSView: NSView {
         return menu
     }
 
+    private func makeWidthMenuItem() -> NSMenuItem {
+        let widthMenu = NSMenu(title: "Stroke Width")
+
+        for width in DrawingPreferences.availableWidths {
+            let item = NSMenuItem(
+                title: "\(Int(width)) px",
+                action: #selector(setStrokeWidth(_:)),
+                keyEquivalent: ""
+            )
+            item.representedObject = NSNumber(value: Double(width))
+            item.state = width == preferences.strokeWidth ? .on : .off
+            item.target = self
+            widthMenu.addItem(item)
+        }
+
+        widthMenu.addItem(NSMenuItem.separator())
+        let decreaseItem = NSMenuItem(
+            title: "Decrease Width (W)",
+            action: #selector(decreaseWidth),
+            keyEquivalent: ""
+        )
+        decreaseItem.target = self
+        widthMenu.addItem(decreaseItem)
+
+        let increaseItem = NSMenuItem(
+            title: "Increase Width (E)",
+            action: #selector(increaseWidth),
+            keyEquivalent: ""
+        )
+        increaseItem.target = self
+        widthMenu.addItem(increaseItem)
+
+        let widthItem = NSMenuItem(title: "Stroke Width", action: nil, keyEquivalent: "")
+        widthItem.submenu = widthMenu
+        return widthItem
+    }
+
+    private func makeColorMenuItem() -> NSMenuItem {
+        let colorMenu = NSMenu(title: "Color")
+
+        for color in StrokeColor.allCases {
+            let item = NSMenuItem(
+                title: color.name,
+                action: #selector(setStrokeColor(_:)),
+                keyEquivalent: ""
+            )
+            item.representedObject = color.rawValue
+            item.state = color == preferences.strokeColor ? .on : .off
+            item.target = self
+            colorMenu.addItem(item)
+        }
+
+        colorMenu.addItem(NSMenuItem.separator())
+        let rotateItem = NSMenuItem(
+            title: "Rotate Colors (R)",
+            action: #selector(rotateColors),
+            keyEquivalent: ""
+        )
+        rotateItem.target = self
+        colorMenu.addItem(rotateItem)
+
+        let colorItem = NSMenuItem(title: "Color", action: nil, keyEquivalent: "")
+        colorItem.submenu = colorMenu
+        return colorItem
+    }
+
     // MARK: - Actions
-    
-    @objc func quitApp() {
+
+    @objc private func undoStroke() {
+        document.undo()
+    }
+
+    @objc private func redoStroke() {
+        document.redo()
+    }
+
+    @objc private func clearAll() {
+        currentStroke = nil
+        document.clear()
+        needsDisplay = true
+    }
+
+    @objc private func setStrokeWidth(_ sender: NSMenuItem) {
+        guard let width = sender.representedObject as? NSNumber else { return }
+        preferences.setStrokeWidth(CGFloat(width.doubleValue))
+    }
+
+    @objc private func setStrokeColor(_ sender: NSMenuItem) {
+        guard let rawColor = sender.representedObject as? String,
+              let color = StrokeColor(rawValue: rawColor) else { return }
+        preferences.setStrokeColor(color)
+    }
+
+    @objc private func decreaseWidth() {
+        preferences.decreaseStrokeWidth()
+    }
+
+    @objc private func increaseWidth() {
+        preferences.increaseStrokeWidth()
+    }
+
+    @objc private func rotateColors() {
+        preferences.rotateStrokeColor()
+    }
+
+    @objc private func quitApp() {
         NSApp.terminate(nil)
     }
-
-    @objc func undoStroke() {
-        guard !strokes.isEmpty else { return }
-        _ = strokes.removeLast()
-        needsDisplay = true
-    }
-
-    @objc func clearAll() {
-        strokes.removeAll()
-        currentStroke = nil
-        needsDisplay = true
-    }
-
-    @objc func setStrokeWidth(_ sender: NSMenuItem) {
-        if let width = sender.representedObject as? Int {
-            strokeWidth = CGFloat(width)
-        }
-    }
-
-    @objc func setStrokeColor(_ sender: NSMenuItem) {
-        if let color = sender.representedObject as? NSColor {
-            strokeColor = color
-
-            // --- PAKSA UPDATE CURSOR INDICATOR SEKARANG JUGA
-            if let window = self.window {
-                let mouseLoc = window.mouseLocationOutsideOfEventStream
-                let viewLoc = convert(mouseLoc, from: nil)
-                cursorLocation = viewLoc
-            }
-            needsDisplay = true
-        }
-    }
-
-    @objc func decreaseWidthAction() {
-        decreaseStrokeWidth()
-    }
-
-    @objc func increaseWidthAction() {
-        increaseStrokeWidth()
-    }
-
-    @objc func rotateColorsAction() {
-        rotateColors()
-    }
 }
-
-// MARK: - SwiftUI Representable
 
 struct DrawingView: NSViewRepresentable {
+    let document: DrawingDocument
+    let preferences: DrawingPreferences
+    let canvasID: CanvasID
+
     func makeNSView(context: Context) -> DrawingNSView {
-        DrawingNSView()
+        DrawingNSView(document: document, preferences: preferences, canvasID: canvasID)
     }
 
-    func updateNSView(_ nsView: DrawingNSView, context: Context) {
-        // Nothing to update for now
-    }
-}
-
-extension NSColor {
-    func isClose(to color: NSColor) -> Bool {
-        // Convert both colors to the same color space for comparison
-        let c1 = self.usingColorSpace(.sRGB)!
-        let c2 = color.usingColorSpace(.sRGB)!
-        
-        // Get the components
-        var r1: CGFloat = 0, g1: CGFloat = 0, b1: CGFloat = 0, a1: CGFloat = 0
-        var r2: CGFloat = 0, g2: CGFloat = 0, b2: CGFloat = 0, a2: CGFloat = 0
-        
-        c1.getRed(&r1, green: &g1, blue: &b1, alpha: &a1)
-        c2.getRed(&r2, green: &g2, blue: &b2, alpha: &a2)
-        
-        // Calculate the difference - colors are "close" if components are within tolerance
-        let tolerance: CGFloat = 0.1
-        return abs(r1 - r2) < tolerance && 
-               abs(g1 - g2) < tolerance && 
-               abs(b1 - b2) < tolerance
-    }
+    func updateNSView(_ nsView: DrawingNSView, context: Context) {}
 }

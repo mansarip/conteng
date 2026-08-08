@@ -5,8 +5,10 @@ A macOS screen annotation application that allows you to draw overlays on top of
 ## Features
 
 - **System-wide drawing overlay** - Draw on top of any application
+- **Multi-monitor support** - Draw independently across every connected display
 - **Global hotkey activation** - Press Option+Tab to toggle the overlay
 - **Multiple drawing tools** - Various stroke widths and colors
+- **Safe editing history** - Undo and redo strokes, including clearing the canvas
 - **Menu bar integration** - Easy access through the system menu bar
 - **Keyboard shortcuts** - Quick access to common functions
 
@@ -16,14 +18,16 @@ When the overlay is active:
 - **Option+Tab** - Toggle overlay on/off (global)
 - **Esc** - Clear all drawings
 - **Cmd+Z** - Undo last stroke
+- **Cmd+Shift+Z** - Redo
 - **W** - Decrease stroke width
 - **E** - Increase stroke width
 - **R** - Rotate through colors (Red → Blue → Green → Black)
+- **Shift+Drag** - Draw a straight line
 
 ## Requirements
 
-- macOS 11.0 or later
-- Xcode 13.0 or later (for building from source)
+- macOS 11.5 or later
+- Xcode 16.3 or later (for building from source)
 
 ## Building from Source
 
@@ -45,12 +49,12 @@ When the overlay is active:
 #### Using Command Line
 1. Build the project:
    ```bash
-   xcodebuild -project Conteng.xcodeproj -scheme Conteng -configuration Release build
+   xcodebuild -project Conteng.xcodeproj -scheme Conteng -configuration Release -derivedDataPath ./build build
    ```
 
 2. The built application will be located at:
    ```
-   build/Release/Conteng.app
+   build/Build/Products/Release/Conteng.app
    ```
 
 #### Creating a Distributable App
@@ -98,6 +102,8 @@ Conteng is built using:
 - **HotKey framework** for global hotkey registration
 
 The app uses a hybrid SwiftUI/AppKit architecture to provide system-wide overlay capabilities while maintaining a modern Swift codebase.
+
+`DrawingDocument` owns a shared undo/redo history across display-specific overlay windows. `DrawingPreferences` provides one persisted source of truth for stroke width and color.
 
 ## Dependencies
 

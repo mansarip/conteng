@@ -33,24 +33,27 @@ struct GuidesWindow: View {
 • Option+Tab - Toggle drawing overlay on/off
 • Esc - Clear all drawings
 • Cmd+Z - Undo last stroke
+• Cmd+Shift+Z - Redo
 • W - Make stroke thinner
 • E - Make stroke thicker
 • R - Change color (Red → Blue → Green → Black)
+• Shift+Drag - Draw a straight line
 """
                     )
                     
                     GuideSection(
                         title: "Menu Options",
-                        content: "Right-click on the menu bar icon to access all drawing options including stroke width and color settings."
+                        content: "Click the menu bar icon for drawing options, or right-click the drawing canvas for quick access. Your stroke width and color are remembered between launches."
                     )
                     
                     GuideSection(
                         title: "Tips",
                         content: """
-• The overlay works across all your desktop spaces
+• The overlay works across all connected displays and desktop spaces
 • You can draw while in fullscreen mode
 • Use different colors and stroke widths for better annotations
-• Clear drawings before starting a new annotation session
+• Hiding the overlay keeps your drawings
+• If you clear by mistake, press Cmd+Z to restore everything
 """
                     )
                 }

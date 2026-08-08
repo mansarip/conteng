@@ -6,8 +6,9 @@
 //
 import Cocoa
 
-class OverlayWindow: NSWindow {
+final class OverlayWindow: NSWindow {
     override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { false }
     
     init(contentRect: NSRect, contentView: NSView) {
         super.init(contentRect: contentRect, styleMask: .borderless, backing: .buffered, defer: false)
@@ -18,5 +19,8 @@ class OverlayWindow: NSWindow {
         self.hasShadow = false
         self.contentView = contentView
         self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        self.acceptsMouseMovedEvents = true
+        self.isMovable = false
+        self.isReleasedWhenClosed = false
     }
 }

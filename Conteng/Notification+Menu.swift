@@ -7,9 +7,6 @@
 import Foundation
 
 extension Notification.Name {
-    static let menuUndo = Notification.Name("menuUndo")
-    static let menuClear = Notification.Name("menuClear")
-    static let menuSetWidth = Notification.Name("menuSetWidth")
-    static let menuSetColor = Notification.Name("menuSetColor")
+    static let drawingDocumentDidChange = Notification.Name("drawingDocumentDidChange")
+    static let drawingPreferencesDidChange = Notification.Name("drawingPreferencesDidChange")
 }
-

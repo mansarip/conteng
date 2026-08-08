@@ -13,6 +13,10 @@ final class DrawingNSView: NSView {
 
     override var acceptsFirstResponder: Bool { true }
 
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
+    }
+
     init(
         document: DrawingDocument,
         preferences: DrawingPreferences,

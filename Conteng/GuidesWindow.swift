@@ -24,16 +24,17 @@ struct GuidesWindow: View {
                     
                     GuideSection(
                         title: "Drawing",
-                        content: "Once the overlay is active, simply click and drag to draw. Your strokes will appear over any application windows."
+                        content: "Once the overlay is active, use the floating toolbar to choose Pen, Highlighter, Eraser, or Arrow, then click and drag anywhere on the screen."
                     )
                     
                     GuideSection(
                         title: "Keyboard Shortcuts",
                         content: """
-• Option+Tab - Toggle drawing overlay on/off
+• Option+Tab - Toggle drawing overlay on/off (default)
 • Esc - Clear all drawings
 • Cmd+Z - Undo last stroke
 • Cmd+Shift+Z - Redo
+• 1 / 2 / 3 / 4 - Pen / Highlighter / Eraser / Arrow
 • W - Make stroke thinner
 • E - Make stroke thicker
 • R - Change color (Red → Blue → Green → Black)
@@ -43,7 +44,7 @@ struct GuidesWindow: View {
                     
                     GuideSection(
                         title: "Menu Options",
-                        content: "Click the menu bar icon for drawing options, or right-click the drawing canvas for quick access. Your stroke width and color are remembered between launches."
+                        content: "Click the menu bar icon for drawing options, or right-click the canvas for quick access. Open Settings to choose your global shortcut. Tool, width, color, and shortcut selections are remembered between launches."
                     )
                     
                     GuideSection(

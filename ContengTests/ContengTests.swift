@@ -57,10 +57,69 @@ struct ContengTests {
         let preferences = DrawingPreferences(defaults: defaults)
         preferences.setStrokeWidth(8)
         preferences.setStrokeColor(.green)
+        preferences.setSelectedTool(.highlighter)
 
         let restoredPreferences = DrawingPreferences(defaults: defaults)
         #expect(restoredPreferences.strokeWidth == 8)
         #expect(restoredPreferences.strokeColor == .green)
+        #expect(restoredPreferences.selectedTool == .highlighter)
+    }
+
+    @Test func eraserGestureIsUndoneAndRedoneAsOneAction() {
+        let document = DrawingDocument()
+        let erasedStroke = Stroke(
+            points: [CGPoint(x: 0, y: 0), CGPoint(x: 30, y: 0)],
+            width: 5,
+            color: .red
+        )
+        let retainedStroke = Stroke(
+            points: [CGPoint(x: 0, y: 100), CGPoint(x: 30, y: 100)],
+            width: 5,
+            color: .blue
+        )
+        document.add(erasedStroke, to: 1)
+        document.add(retainedStroke, to: 1)
+
+        let snapshot = document.snapshot()
+        #expect(document.erase(at: CGPoint(x: 15, y: 2), radius: 8, on: 1))
+        document.commitErasure(from: snapshot)
+        #expect(document.strokes(for: 1) == [retainedStroke])
+
+        document.undo()
+        #expect(document.strokes(for: 1) == [erasedStroke, retainedStroke])
+
+        document.redo()
+        #expect(document.strokes(for: 1) == [retainedStroke])
+    }
+
+    @Test func highlighterUsesItsRenderedWidthForEraserHitTesting() {
+        let highlighter = Stroke(
+            points: [CGPoint(x: 0, y: 0), CGPoint(x: 30, y: 0)],
+            width: 4,
+            color: .green,
+            tool: .highlighter
+        )
+
+        #expect(StrokeHitTester.contains(CGPoint(x: 15, y: 8), radius: 3, in: highlighter))
+        #expect(!StrokeHitTester.contains(CGPoint(x: 15, y: 20), radius: 3, in: highlighter))
+    }
+
+    @Test func globalShortcutPersistsAndRequiresAModifier() {
+        let suiteName = "ContengShortcutTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let preferences = GlobalShortcutPreferences(defaults: defaults)
+        preferences.setKey(.k)
+        preferences.setModifiers([.control, .shift])
+
+        let restoredPreferences = GlobalShortcutPreferences(defaults: defaults)
+        #expect(restoredPreferences.shortcut.key == .k)
+        #expect(restoredPreferences.shortcut.modifiers == [.control, .shift])
+
+        restoredPreferences.setModifier(.control, enabled: false)
+        restoredPreferences.setModifier(.shift, enabled: false)
+        #expect(restoredPreferences.shortcut.modifiers == .shift)
     }
 
     @Test func smoothPathEndsAtTheFinalInputPoint() {

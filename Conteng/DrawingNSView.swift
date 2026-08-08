@@ -9,6 +9,8 @@ final class DrawingNSView: NSView {
     private var cursorLocation: CGPoint?
     private var startPoint: CGPoint?
     private var isDrawingStraightLine = false
+    private var eraserStartSnapshot: DrawingDocument.Snapshot?
+    private var lastEraserPoint: CGPoint?
     private var localEventMonitor: Any?
 
     override var acceptsFirstResponder: Bool { true }
@@ -102,7 +104,24 @@ final class DrawingNSView: NSView {
                 return event
             }
 
+            let conflictingModifiers: NSEvent.ModifierFlags = [.command, .control, .option]
+            guard event.modifierFlags.intersection(conflictingModifiers).isEmpty else {
+                return event
+            }
+
             switch key {
+            case "1":
+                preferences.setSelectedTool(.pen)
+                return nil
+            case "2":
+                preferences.setSelectedTool(.highlighter)
+                return nil
+            case "3":
+                preferences.setSelectedTool(.eraser)
+                return nil
+            case "4":
+                preferences.setSelectedTool(.arrow)
+                return nil
             case "w":
                 preferences.decreaseStrokeWidth()
                 return nil
@@ -139,12 +158,20 @@ final class DrawingNSView: NSView {
 
         let point = convert(event.locationInWindow, from: nil)
         startPoint = point
-        isDrawingStraightLine = event.modifierFlags.contains(.shift)
-        currentStroke = Stroke(
-            points: [point],
-            width: preferences.strokeWidth,
-            color: preferences.strokeColor
-        )
+        isDrawingStraightLine = event.modifierFlags.contains(.shift) || preferences.selectedTool == .arrow
+
+        if preferences.selectedTool == .eraser {
+            eraserStartSnapshot = document.snapshot()
+            lastEraserPoint = nil
+            eraseThrough(point)
+        } else {
+            currentStroke = Stroke(
+                points: [point],
+                width: preferences.strokeWidth,
+                color: preferences.strokeColor,
+                tool: preferences.selectedTool
+            )
+        }
         cursorLocation = nil
         needsDisplay = true
     }
@@ -152,7 +179,9 @@ final class DrawingNSView: NSView {
     override func mouseDragged(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
 
-        if isDrawingStraightLine, let startPoint {
+        if preferences.selectedTool == .eraser {
+            eraseThrough(point)
+        } else if isDrawingStraightLine, let startPoint {
             currentStroke?.points = [startPoint, point]
         } else if let lastPoint = currentStroke?.points.last,
                   hypot(point.x - lastPoint.x, point.y - lastPoint.y) >= 0.5 {
@@ -166,7 +195,14 @@ final class DrawingNSView: NSView {
     override func mouseUp(with event: NSEvent) {
         let endPoint = convert(event.locationInWindow, from: nil)
 
-        if isDrawingStraightLine, let startPoint {
+        if preferences.selectedTool == .eraser {
+            eraseThrough(endPoint)
+            if let eraserStartSnapshot {
+                document.commitErasure(from: eraserStartSnapshot)
+            }
+            self.eraserStartSnapshot = nil
+            lastEraserPoint = nil
+        } else if isDrawingStraightLine, let startPoint {
             currentStroke?.points = [startPoint, endPoint]
         } else if let lastPoint = currentStroke?.points.last,
                   hypot(endPoint.x - lastPoint.x, endPoint.y - lastPoint.y) >= 0.5 {
@@ -184,6 +220,29 @@ final class DrawingNSView: NSView {
         needsDisplay = true
     }
 
+    private func eraseThrough(_ point: CGPoint) {
+        let radius = max(8, preferences.strokeWidth * 2)
+
+        if let lastEraserPoint {
+            let distance = hypot(point.x - lastEraserPoint.x, point.y - lastEraserPoint.y)
+            let sampleSpacing = max(2, radius / 2)
+            let sampleCount = max(1, Int(ceil(distance / sampleSpacing)))
+
+            for step in 1...sampleCount {
+                let progress = CGFloat(step) / CGFloat(sampleCount)
+                let samplePoint = CGPoint(
+                    x: lastEraserPoint.x + (point.x - lastEraserPoint.x) * progress,
+                    y: lastEraserPoint.y + (point.y - lastEraserPoint.y) * progress
+                )
+                document.erase(at: samplePoint, radius: radius, on: canvasID)
+            }
+        } else {
+            document.erase(at: point, radius: radius, on: canvasID)
+        }
+
+        lastEraserPoint = point
+    }
+
     // MARK: - Drawing
 
     override func draw(_ dirtyRect: NSRect) {
@@ -197,7 +256,9 @@ final class DrawingNSView: NSView {
         }
 
         if let cursorLocation {
-            let radius = max(1, preferences.strokeWidth / 2)
+            let radius = preferences.selectedTool == .eraser
+                ? max(8, preferences.strokeWidth * 2)
+                : max(1, preferences.strokeWidth / 2)
             let indicatorRect = NSRect(
                 x: cursorLocation.x - radius,
                 y: cursorLocation.y - radius,
@@ -205,30 +266,52 @@ final class DrawingNSView: NSView {
                 height: radius * 2
             )
             let indicator = NSBezierPath(ovalIn: indicatorRect)
-            preferences.strokeColor.nsColor.setFill()
-            indicator.fill()
+            if preferences.selectedTool == .eraser {
+                NSColor.white.withAlphaComponent(0.9).setFill()
+                indicator.fill()
+                NSColor.systemRed.withAlphaComponent(0.9).setStroke()
+                indicator.lineWidth = 1.5
+                indicator.stroke()
+            } else {
+                preferences.strokeColor.nsColor.setFill()
+                indicator.fill()
+            }
         }
     }
 
     private func draw(_ stroke: Stroke) {
         guard stroke.points.count > 1 else {
             if let point = stroke.points.first {
-                let radius = stroke.width / 2
+                let radius = stroke.renderedWidth / 2
                 let dotRect = NSRect(
                     x: point.x - radius,
                     y: point.y - radius,
                     width: radius * 2,
                     height: radius * 2
                 )
-                stroke.color.nsColor.setFill()
+                let color = stroke.tool == .highlighter
+                    ? stroke.color.nsColor.withAlphaComponent(0.32)
+                    : stroke.color.nsColor
+                color.setFill()
                 NSBezierPath(ovalIn: dotRect).fill()
             }
             return
         }
 
-        let path = StrokePathBuilder.makePath(points: stroke.points)
-        stroke.color.nsColor.setStroke()
-        path.lineWidth = stroke.width
+        let path: NSBezierPath
+        if stroke.tool == .arrow,
+           let startPoint = stroke.points.first,
+           let endPoint = stroke.points.last {
+            path = StrokePathBuilder.makeArrowPath(from: startPoint, to: endPoint, width: stroke.width)
+        } else {
+            path = StrokePathBuilder.makePath(points: stroke.points)
+        }
+
+        let color = stroke.tool == .highlighter
+            ? stroke.color.nsColor.withAlphaComponent(0.32)
+            : stroke.color.nsColor
+        color.setStroke()
+        path.lineWidth = stroke.renderedWidth
         path.lineCapStyle = .round
         path.lineJoinStyle = .round
         path.stroke()
@@ -257,6 +340,7 @@ final class DrawingNSView: NSView {
         menu.addItem(clearItem)
 
         menu.addItem(NSMenuItem.separator())
+        menu.addItem(makeToolMenuItem())
         menu.addItem(makeWidthMenuItem())
         menu.addItem(makeColorMenuItem())
 
@@ -266,6 +350,26 @@ final class DrawingNSView: NSView {
         menu.addItem(quitItem)
 
         return menu
+    }
+
+    private func makeToolMenuItem() -> NSMenuItem {
+        let toolMenu = NSMenu(title: "Tool")
+
+        for tool in DrawingTool.allCases {
+            let item = NSMenuItem(
+                title: "\(tool.name) (\(tool.keyboardShortcut))",
+                action: #selector(setDrawingTool(_:)),
+                keyEquivalent: ""
+            )
+            item.representedObject = tool.rawValue
+            item.state = tool == preferences.selectedTool ? .on : .off
+            item.target = self
+            toolMenu.addItem(item)
+        }
+
+        let toolItem = NSMenuItem(title: "Tool", action: nil, keyEquivalent: "")
+        toolItem.submenu = toolMenu
+        return toolItem
     }
 
     private func makeWidthMenuItem() -> NSMenuItem {
@@ -346,8 +450,16 @@ final class DrawingNSView: NSView {
 
     @objc private func clearAll() {
         currentStroke = nil
+        eraserStartSnapshot = nil
+        lastEraserPoint = nil
         document.clear()
         needsDisplay = true
+    }
+
+    @objc private func setDrawingTool(_ sender: NSMenuItem) {
+        guard let rawTool = sender.representedObject as? String,
+              let tool = DrawingTool(rawValue: rawTool) else { return }
+        preferences.setSelectedTool(tool)
     }
 
     @objc private func setStrokeWidth(_ sender: NSMenuItem) {

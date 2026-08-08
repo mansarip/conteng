@@ -8,5 +8,7 @@ import Foundation
 
 extension Notification.Name {
     static let drawingDocumentDidChange = Notification.Name("drawingDocumentDidChange")
+    static let drawingHistoryDidChange = Notification.Name("drawingHistoryDidChange")
     static let drawingPreferencesDidChange = Notification.Name("drawingPreferencesDidChange")
+    static let globalShortcutDidChange = Notification.Name("globalShortcutDidChange")
 }

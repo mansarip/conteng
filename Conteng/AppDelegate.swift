@@ -9,18 +9,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotKey: HotKey?
     private var aboutWindow: NSWindow?
     private var guidesWindow: NSWindow?
+    private var settingsWindow: NSWindow?
+    private var menuRefreshScheduled = false
 
     private let drawingDocument = DrawingDocument()
     private let drawingPreferences = DrawingPreferences.shared
+    private let shortcutPreferences = GlobalShortcutPreferences.shared
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         configureStatusItem()
         registerObservers()
-
-        hotKey = HotKey(key: .tab, modifiers: [.option])
-        hotKey?.keyDownHandler = { [weak self] in
-            self?.toggleOverlay()
-        }
+        configureHotKey()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -50,7 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(scheduleMenuRefresh),
-            name: .drawingDocumentDidChange,
+            name: .drawingHistoryDidChange,
             object: drawingDocument
         )
         NotificationCenter.default.addObserver(
@@ -65,6 +64,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             name: NSApplication.didChangeScreenParametersNotification,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(globalShortcutDidChange),
+            name: .globalShortcutDidChange,
+            object: shortcutPreferences
+        )
     }
 
     // MARK: - Status menu
@@ -75,9 +80,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let drawItem = NSMenuItem(
             title: isOverlayVisible ? "Stop Drawing" : "Start Drawing",
             action: #selector(toggleOverlayFromMenu),
-            keyEquivalent: "\t"
+            keyEquivalent: shortcutPreferences.shortcut.key.menuKeyEquivalent
         )
-        drawItem.keyEquivalentModifierMask = [.option]
+        drawItem.keyEquivalentModifierMask = shortcutPreferences.shortcut.modifiers.eventModifiers
         drawItem.target = self
         menu.addItem(drawItem)
 
@@ -100,6 +105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         clearItem.isEnabled = !drawingDocument.isEmpty
         menu.addItem(clearItem)
 
+        menu.addItem(makeToolMenuItem())
         menu.addItem(makeWidthMenuItem())
         menu.addItem(makeColorMenuItem())
 
@@ -112,6 +118,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         aboutItem.target = self
         menu.addItem(aboutItem)
 
+        let settingsItem = NSMenuItem(
+            title: "Settings…",
+            action: #selector(showSettings),
+            keyEquivalent: ","
+        )
+        settingsItem.keyEquivalentModifierMask = [.command]
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+
         menu.addItem(NSMenuItem.separator())
         let quitItem = NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "q")
         quitItem.keyEquivalentModifierMask = [.command]
@@ -119,6 +134,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(quitItem)
 
         return menu
+    }
+
+    private func makeToolMenuItem() -> NSMenuItem {
+        let toolMenu = NSMenu(title: "Tool")
+
+        for tool in DrawingTool.allCases {
+            let item = NSMenuItem(
+                title: "\(tool.name) (\(tool.keyboardShortcut))",
+                action: #selector(setDrawingTool(_:)),
+                keyEquivalent: ""
+            )
+            item.representedObject = tool.rawValue
+            item.state = tool == drawingPreferences.selectedTool ? .on : .off
+            item.target = self
+            toolMenu.addItem(item)
+        }
+
+        let toolItem = NSMenuItem(title: "Tool", action: nil, keyEquivalent: "")
+        toolItem.submenu = toolMenu
+        return toolItem
     }
 
     private func makeWidthMenuItem() -> NSMenuItem {
@@ -162,10 +197,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func scheduleMenuRefresh() {
+        guard !menuRefreshScheduled else { return }
+        menuRefreshScheduled = true
+
         DispatchQueue.main.async { [weak self] in
             guard let self, self.statusItem != nil else { return }
+            self.menuRefreshScheduled = false
             self.statusItem.menu = self.makeMenu()
         }
+    }
+
+    private func configureHotKey() {
+        let shortcut = shortcutPreferences.shortcut
+        hotKey = HotKey(
+            key: shortcut.key.hotKey,
+            modifiers: shortcut.modifiers.eventModifiers
+        )
+        hotKey?.keyDownHandler = { [weak self] in
+            self?.toggleOverlay()
+        }
+    }
+
+    @objc private func globalShortcutDidChange() {
+        configureHotKey()
+        scheduleMenuRefresh()
     }
 
     // MARK: - Overlay windows
@@ -195,7 +250,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 continue
             }
 
-            let contentView = NSHostingView(
+            let contentView = OverlayHostingView(
                 rootView: ContentView(
                     document: drawingDocument,
                     preferences: drawingPreferences,
@@ -261,6 +316,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         drawingDocument.clear()
     }
 
+    @objc private func setDrawingTool(_ sender: NSMenuItem) {
+        guard let rawTool = sender.representedObject as? String,
+              let tool = DrawingTool(rawValue: rawTool) else { return }
+        drawingPreferences.setSelectedTool(tool)
+    }
+
     @objc private func setStrokeWidth(_ sender: NSMenuItem) {
         guard let width = sender.representedObject as? NSNumber else { return }
         drawingPreferences.setStrokeWidth(CGFloat(width.doubleValue))
@@ -314,6 +375,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         aboutWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc private func showSettings() {
+        if settingsWindow == nil {
+            let content = NSHostingView(
+                rootView: SettingsWindow(preferences: shortcutPreferences)
+            )
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 520, height: 245),
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false
+            )
+            window.center()
+            window.contentView = content
+            window.title = "Conteng Settings"
+            window.isReleasedWhenClosed = false
+            settingsWindow = window
+        }
+
+        settingsWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 }

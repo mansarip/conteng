@@ -9,7 +9,7 @@ import SwiftUI
 
 struct ContentView: View {
     let document: DrawingDocument
-    let preferences: DrawingPreferences
+    @ObservedObject var preferences: DrawingPreferences
     let canvasID: CanvasID
 
     var body: some View {
@@ -20,6 +20,12 @@ struct ContentView: View {
                 canvasID: canvasID
             )
                 .background(Color.clear)
+
+            VStack {
+                MiniToolbar(preferences: preferences)
+                    .padding(.top, 12)
+                Spacer()
+            }
         }
         .edgesIgnoringSafeArea(.all)
     }

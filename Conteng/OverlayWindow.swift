@@ -5,6 +5,13 @@
 //  Created by Luqman on 11/06/2025.
 //
 import Cocoa
+import SwiftUI
+
+final class OverlayHostingView<Content: View>: NSHostingView<Content> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
+    }
+}
 
 final class OverlayWindow: NSWindow {
     override var canBecomeKey: Bool { true }

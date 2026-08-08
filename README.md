@@ -2,6 +2,8 @@
 
 A macOS screen annotation application that allows you to draw overlays on top of any application using a system-wide hotkey. Conteng runs as a menu bar utility with a transparent overlay window for drawing.
 
+**Current version:** 1.4
+
 ## Features
 
 - **System-wide drawing overlay** - Draw on top of any application
@@ -14,6 +16,17 @@ A macOS screen annotation application that allows you to draw overlays on top of
 - **Safe editing history** - Undo and redo strokes, including clearing the canvas
 - **Menu bar integration** - Easy access through the system menu bar
 - **Keyboard shortcuts** - Quick access to common functions
+
+## What's New in 1.4
+
+- Floating toolbar available on every connected display
+- Pen, translucent highlighter, stroke eraser, and arrow tools
+- Tool shortcuts using the number keys `1` through `4`
+- Configurable global activation shortcut with persistent settings
+- Improved toolbar hit targets and stroke-width controls
+- Eraser gestures participate in the shared undo/redo history as a single action
+
+Version 1.3 introduced multi-monitor overlays, persistent drawings when the overlay is hidden, safe undo/redo after clearing, improved stroke smoothing, and shared drawing preferences.
 
 ## Keyboard Shortcuts
 
@@ -111,7 +124,22 @@ The app uses a hybrid SwiftUI/AppKit architecture to provide system-wide overlay
 
 ## Dependencies
 
-- **HotKey** - Swift Package Manager dependency for global hotkey registration
+- **HotKey 0.2.1** - Swift Package Manager dependency for global hotkey registration
+
+## Roadmap
+
+### 1.5 — Capture & Sharing
+
+- Copy the annotated screen directly to the clipboard
+- Save annotations as PNG
+- Capture the active monitor or a selected region
+- Automatically hide the toolbar from exported captures
+
+### 1.6 — Presentation Mode
+
+- Temporary laser pointer
+- Auto-fading strokes
+- Presentation-focused controls
 
 ## License
 

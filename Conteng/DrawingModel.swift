@@ -197,6 +197,16 @@ final class DrawingPreferences: ObservableObject {
     @Published private(set) var strokeColor: StrokeColor
     @Published private(set) var selectedTool: DrawingTool
 
+    var canDecreaseStrokeWidth: Bool {
+        guard let index = Self.availableWidths.firstIndex(of: strokeWidth) else { return false }
+        return index > 0
+    }
+
+    var canIncreaseStrokeWidth: Bool {
+        guard let index = Self.availableWidths.firstIndex(of: strokeWidth) else { return false }
+        return index < Self.availableWidths.count - 1
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
 
@@ -226,13 +236,14 @@ final class DrawingPreferences: ObservableObject {
     }
 
     func decreaseStrokeWidth() {
-        guard let index = Self.availableWidths.firstIndex(of: strokeWidth), index > 0 else { return }
+        guard canDecreaseStrokeWidth,
+              let index = Self.availableWidths.firstIndex(of: strokeWidth) else { return }
         setStrokeWidth(Self.availableWidths[index - 1])
     }
 
     func increaseStrokeWidth() {
-        guard let index = Self.availableWidths.firstIndex(of: strokeWidth),
-              index < Self.availableWidths.count - 1 else { return }
+        guard canIncreaseStrokeWidth,
+              let index = Self.availableWidths.firstIndex(of: strokeWidth) else { return }
         setStrokeWidth(Self.availableWidths[index + 1])
     }
 

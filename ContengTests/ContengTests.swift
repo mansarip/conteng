@@ -65,6 +65,29 @@ struct ContengTests {
         #expect(restoredPreferences.selectedTool == .highlighter)
     }
 
+    @Test func strokeWidthButtonsMoveThroughEveryAvailableWidth() {
+        let suiteName = "ContengWidthTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let preferences = DrawingPreferences(defaults: defaults)
+        preferences.setStrokeWidth(10)
+        #expect(preferences.canDecreaseStrokeWidth)
+        #expect(!preferences.canIncreaseStrokeWidth)
+
+        preferences.decreaseStrokeWidth()
+        #expect(preferences.strokeWidth == 8)
+
+        while preferences.canDecreaseStrokeWidth {
+            preferences.decreaseStrokeWidth()
+        }
+        #expect(preferences.strokeWidth == 2)
+        #expect(!preferences.canDecreaseStrokeWidth)
+
+        preferences.increaseStrokeWidth()
+        #expect(preferences.strokeWidth == 4)
+    }
+
     @Test func eraserGestureIsUndoneAndRedoneAsOneAction() {
         let document = DrawingDocument()
         let erasedStroke = Stroke(

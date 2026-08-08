@@ -55,11 +55,17 @@ struct MiniToolbar: View {
                 preferences.decreaseStrokeWidth()
             } label: {
                 Image(systemName: "minus")
-                    .frame(width: 24, height: 28)
+                    .font(.system(size: 13, weight: .semibold))
+                    .frame(width: 28, height: 28)
+                    .background(Color.primary.opacity(0.001))
+                    .contentShape(Rectangle())
             }
             .buttonStyle(PlainButtonStyle())
-            .disabled(preferences.strokeWidth == DrawingPreferences.availableWidths.first)
+            .contentShape(Rectangle())
+            .disabled(!preferences.canDecreaseStrokeWidth)
+            .opacity(preferences.canDecreaseStrokeWidth ? 1 : 0.35)
             .help("Decrease width (W)")
+            .accessibilityLabel("Decrease stroke width")
 
             Text("\(Int(preferences.strokeWidth))")
                 .font(.system(size: 12, weight: .semibold, design: .monospaced))
@@ -70,11 +76,17 @@ struct MiniToolbar: View {
                 preferences.increaseStrokeWidth()
             } label: {
                 Image(systemName: "plus")
-                    .frame(width: 24, height: 28)
+                    .font(.system(size: 13, weight: .semibold))
+                    .frame(width: 28, height: 28)
+                    .background(Color.primary.opacity(0.001))
+                    .contentShape(Rectangle())
             }
             .buttonStyle(PlainButtonStyle())
-            .disabled(preferences.strokeWidth == DrawingPreferences.availableWidths.last)
+            .contentShape(Rectangle())
+            .disabled(!preferences.canIncreaseStrokeWidth)
+            .opacity(preferences.canIncreaseStrokeWidth ? 1 : 0.35)
             .help("Increase width (E)")
+            .accessibilityLabel("Increase stroke width")
         }
         .padding(.horizontal, 9)
         .padding(.vertical, 7)

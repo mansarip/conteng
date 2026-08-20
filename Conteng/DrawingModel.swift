@@ -189,6 +189,7 @@ final class DrawingPreferences: ObservableObject {
         static let strokeWidth = "drawing.strokeWidth"
         static let strokeColor = "drawing.strokeColor"
         static let selectedTool = "drawing.selectedTool"
+        static let clearAfterStop = "drawing.clearAfterStop"
     }
 
     private let defaults: UserDefaults
@@ -196,6 +197,7 @@ final class DrawingPreferences: ObservableObject {
     @Published private(set) var strokeWidth: CGFloat
     @Published private(set) var strokeColor: StrokeColor
     @Published private(set) var selectedTool: DrawingTool
+    @Published private(set) var clearsAfterStopDrawing: Bool
 
     var canDecreaseStrokeWidth: Bool {
         guard let index = Self.availableWidths.firstIndex(of: strokeWidth) else { return false }
@@ -226,6 +228,8 @@ final class DrawingPreferences: ObservableObject {
         } else {
             selectedTool = .pen
         }
+
+        clearsAfterStopDrawing = defaults.bool(forKey: Key.clearAfterStop)
     }
 
     func setStrokeWidth(_ width: CGFloat) {
@@ -264,6 +268,13 @@ final class DrawingPreferences: ObservableObject {
         guard tool != selectedTool else { return }
         selectedTool = tool
         defaults.set(tool.rawValue, forKey: Key.selectedTool)
+        notifyChange()
+    }
+
+    func setClearsAfterStopDrawing(_ enabled: Bool) {
+        guard enabled != clearsAfterStopDrawing else { return }
+        clearsAfterStopDrawing = enabled
+        defaults.set(enabled, forKey: Key.clearAfterStop)
         notifyChange()
     }
 

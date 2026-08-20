@@ -229,6 +229,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if isOverlayVisible {
             overlayWindows.values.forEach { $0.orderOut(nil) }
             isOverlayVisible = false
+
+            if drawingPreferences.clearsAfterStopDrawing {
+                drawingDocument.clear()
+            }
         } else {
             synchronizeOverlayWindows()
             showOverlayWindows()
@@ -381,10 +385,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func showSettings() {
         if settingsWindow == nil {
             let content = NSHostingView(
-                rootView: SettingsWindow(preferences: shortcutPreferences)
+                rootView: SettingsWindow(
+                    shortcutPreferences: shortcutPreferences,
+                    drawingPreferences: drawingPreferences
+                )
             )
+            content.frame = NSRect(origin: .zero, size: content.fittingSize)
+
             let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 520, height: 245),
+                contentRect: content.frame,
                 styleMask: [.titled, .closable],
                 backing: .buffered,
                 defer: false

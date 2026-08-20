@@ -44,7 +44,7 @@ struct GuidesWindow: View {
                     
                     GuideSection(
                         title: "Menu Options",
-                        content: "Click the menu bar icon for drawing options, or right-click the canvas for quick access. Open Settings to choose your global shortcut. Tool, width, color, and shortcut selections are remembered between launches."
+                        content: "Click the menu bar icon for drawing options, or right-click the canvas for quick access. Open Settings to choose your global shortcut and whether drawings are cleared when you stop drawing. Tool, width, color, and shortcut selections are remembered between launches."
                     )
                     
                     GuideSection(
@@ -53,7 +53,7 @@ struct GuidesWindow: View {
 • The overlay works across all connected displays and desktop spaces
 • You can draw while in fullscreen mode
 • Use different colors and stroke widths for better annotations
-• Hiding the overlay keeps your drawings
+• Hiding the overlay keeps your drawings, unless "Clear after stop drawing" is turned on in Settings
 • If you clear by mistake, press Cmd+Z to restore everything
 """
                     )

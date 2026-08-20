@@ -4,7 +4,7 @@
 
 A macOS screen annotation application that allows you to draw overlays on top of any application using a system-wide hotkey. Conteng runs as a menu bar utility with a transparent overlay window for drawing.
 
-**Current version:** 1.4
+**Current version:** 1.5
 
 ## Features
 
@@ -22,16 +22,15 @@ A macOS screen annotation application that allows you to draw overlays on top of
 - **Menu bar integration** - Easy access through the system menu bar
 - **Keyboard shortcuts** - Quick access to common functions
 
-## What's New in 1.4
+## What's New in 1.5
 
-- Floating toolbar available on every connected display
-- Pen, translucent highlighter, stroke eraser, and arrow tools
-- Tool shortcuts using the number keys `1` through `4`
-- Configurable global activation shortcut with persistent settings
-- Improved toolbar hit targets and stroke-width controls
-- Eraser gestures participate in the shared undo/redo history as a single action
+- Editable color palette holding up to eight colors, picked with the system color panel
+- Rearrangeable toolbar, with the number keys following each tool's position
+- Optional "Clear after stop drawing" to wipe the canvas whenever the overlay is hidden
+- Compact settings window grouped into shortcut, toolbar, color, and drawing sections
+- Colors and toolbar order persist across launches, and existing drawings keep their color when the palette changes
 
-Version 1.3 introduced multi-monitor overlays, persistent drawings when the overlay is hidden, safe undo/redo after clearing, improved stroke smoothing, and shared drawing preferences.
+Version 1.4 introduced the floating toolbar on every display, the highlighter, eraser, and arrow tools, number-key tool shortcuts, and the configurable global shortcut. Version 1.3 introduced multi-monitor overlays, persistent drawings when the overlay is hidden, safe undo/redo after clearing, improved stroke smoothing, and shared drawing preferences.
 
 ## Keyboard Shortcuts
 
@@ -112,11 +111,11 @@ xcodebuild test -project Conteng.xcodeproj -scheme Conteng -destination 'platfor
 
 ## Installation
 
-1. Download `Conteng-1.4-macOS-universal.zip` from the latest GitHub Release.
+1. Download `Conteng-1.5-macOS-universal.zip` from the latest GitHub Release.
 2. Verify its SHA-256 checksum against the value published in the release notes:
 
    ```bash
-   shasum -a 256 ~/Downloads/Conteng-1.4-macOS-universal.zip
+   shasum -a 256 ~/Downloads/Conteng-1.5-macOS-universal.zip
    ```
 
 3. Unzip it and move `Conteng.app` into the Applications folder.
@@ -153,14 +152,14 @@ The app uses a hybrid SwiftUI/AppKit architecture to provide system-wide overlay
 
 ## Roadmap
 
-### 1.5 — Capture & Sharing
+### 1.6 — Capture & Sharing
 
 - Copy the annotated screen directly to the clipboard
 - Save annotations as PNG
 - Capture the active monitor or a selected region
 - Automatically hide the toolbar from exported captures
 
-### 1.6 — Presentation Mode
+### 1.7 — Presentation Mode
 
 - Temporary laser pointer
 - Auto-fading strokes

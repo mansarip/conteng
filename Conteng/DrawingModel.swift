@@ -23,15 +23,6 @@ enum DrawingTool: String, CaseIterable, Equatable, Identifiable {
         case .arrow: "arrow.up.right"
         }
     }
-
-    var keyboardShortcut: String {
-        switch self {
-        case .pen: "1"
-        case .highlighter: "2"
-        case .eraser: "3"
-        case .arrow: "4"
-        }
-    }
 }
 
 enum StrokeColor: String, CaseIterable, Equatable, Identifiable {
@@ -184,12 +175,14 @@ final class DrawingDocument {
 final class DrawingPreferences: ObservableObject {
     static let shared = DrawingPreferences()
     static let availableWidths: [CGFloat] = [2, 4, 5, 6, 7, 8, 10]
+    static let defaultToolOrder = DrawingTool.allCases
 
     private enum Key {
         static let strokeWidth = "drawing.strokeWidth"
         static let strokeColor = "drawing.strokeColor"
         static let selectedTool = "drawing.selectedTool"
         static let clearAfterStop = "drawing.clearAfterStop"
+        static let toolOrder = "drawing.toolOrder"
     }
 
     private let defaults: UserDefaults
@@ -198,6 +191,7 @@ final class DrawingPreferences: ObservableObject {
     @Published private(set) var strokeColor: StrokeColor
     @Published private(set) var selectedTool: DrawingTool
     @Published private(set) var clearsAfterStopDrawing: Bool
+    @Published private(set) var toolOrder: [DrawingTool]
 
     var canDecreaseStrokeWidth: Bool {
         guard let index = Self.availableWidths.firstIndex(of: strokeWidth) else { return false }
@@ -230,6 +224,51 @@ final class DrawingPreferences: ObservableObject {
         }
 
         clearsAfterStopDrawing = defaults.bool(forKey: Key.clearAfterStop)
+        toolOrder = Self.sanitizedToolOrder(defaults.stringArray(forKey: Key.toolOrder) ?? [])
+    }
+
+    /// Keeps a stored order usable after tools are added, removed, or duplicated.
+    private static func sanitizedToolOrder(_ rawTools: [String]) -> [DrawingTool] {
+        var order: [DrawingTool] = []
+
+        for tool in rawTools.compactMap(DrawingTool.init(rawValue:)) where !order.contains(tool) {
+            order.append(tool)
+        }
+
+        order.append(contentsOf: defaultToolOrder.filter { !order.contains($0) })
+        return order
+    }
+
+    func keyboardShortcut(for tool: DrawingTool) -> String? {
+        guard let index = toolOrder.firstIndex(of: tool), index < 9 else { return nil }
+        return String(index + 1)
+    }
+
+    func tool(forKeyboardShortcut character: Character) -> DrawingTool? {
+        guard let position = character.wholeNumberValue,
+              position >= 1, position <= toolOrder.count else { return nil }
+        return toolOrder[position - 1]
+    }
+
+    func moveTool(_ tool: DrawingTool, to destination: Int) {
+        guard let origin = toolOrder.firstIndex(of: tool),
+              origin != destination,
+              toolOrder.indices.contains(destination) else { return }
+
+        var order = toolOrder
+        order.remove(at: origin)
+        order.insert(tool, at: destination)
+
+        toolOrder = order
+        defaults.set(order.map(\.rawValue), forKey: Key.toolOrder)
+        notifyChange()
+    }
+
+    func resetToolOrder() {
+        guard toolOrder != Self.defaultToolOrder else { return }
+        toolOrder = Self.defaultToolOrder
+        defaults.removeObject(forKey: Key.toolOrder)
+        notifyChange()
     }
 
     func setStrokeWidth(_ width: CGFloat) {

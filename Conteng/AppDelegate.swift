@@ -139,9 +139,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func makeToolMenuItem() -> NSMenuItem {
         let toolMenu = NSMenu(title: "Tool")
 
-        for tool in DrawingTool.allCases {
+        for tool in drawingPreferences.toolOrder {
+            let shortcut = drawingPreferences.keyboardShortcut(for: tool)
             let item = NSMenuItem(
-                title: "\(tool.name) (\(tool.keyboardShortcut))",
+                title: shortcut.map { "\(tool.name) (\($0))" } ?? tool.name,
                 action: #selector(setDrawingTool(_:)),
                 keyEquivalent: ""
             )

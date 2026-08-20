@@ -5,7 +5,7 @@ struct MiniToolbar: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            ForEach(DrawingTool.allCases) { tool in
+            ForEach(preferences.toolOrder) { tool in
                 Button {
                     preferences.setSelectedTool(tool)
                 } label: {
@@ -19,7 +19,7 @@ struct MiniToolbar: View {
                         )
                 }
                 .buttonStyle(PlainButtonStyle())
-                .help("\(tool.name) (\(tool.keyboardShortcut))")
+                .help(toolHelp(for: tool))
                 .accessibilityLabel(tool.name)
             }
 
@@ -99,6 +99,11 @@ struct MiniToolbar: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.primary.opacity(0.12), lineWidth: 1)
         )
+    }
+
+    private func toolHelp(for tool: DrawingTool) -> String {
+        guard let shortcut = preferences.keyboardShortcut(for: tool) else { return tool.name }
+        return "\(tool.name) (\(shortcut))"
     }
 
     private var toolbarDivider: some View {

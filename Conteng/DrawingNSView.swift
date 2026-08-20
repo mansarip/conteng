@@ -109,19 +109,12 @@ final class DrawingNSView: NSView {
                 return event
             }
 
+            if let tool = preferences.tool(forKeyboardShortcut: key) {
+                preferences.setSelectedTool(tool)
+                return nil
+            }
+
             switch key {
-            case "1":
-                preferences.setSelectedTool(.pen)
-                return nil
-            case "2":
-                preferences.setSelectedTool(.highlighter)
-                return nil
-            case "3":
-                preferences.setSelectedTool(.eraser)
-                return nil
-            case "4":
-                preferences.setSelectedTool(.arrow)
-                return nil
             case "w":
                 preferences.decreaseStrokeWidth()
                 return nil
@@ -355,9 +348,10 @@ final class DrawingNSView: NSView {
     private func makeToolMenuItem() -> NSMenuItem {
         let toolMenu = NSMenu(title: "Tool")
 
-        for tool in DrawingTool.allCases {
+        for tool in preferences.toolOrder {
+            let shortcut = preferences.keyboardShortcut(for: tool)
             let item = NSMenuItem(
-                title: "\(tool.name) (\(tool.keyboardShortcut))",
+                title: shortcut.map { "\(tool.name) (\($0))" } ?? tool.name,
                 action: #selector(setDrawingTool(_:)),
                 keyEquivalent: ""
             )

@@ -1,8 +1,11 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct SettingsWindow: View {
     @ObservedObject var shortcutPreferences: GlobalShortcutPreferences
     @ObservedObject var drawingPreferences: DrawingPreferences
+
+    @State private var dropTargetTool: DrawingTool?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -50,6 +53,35 @@ struct SettingsWindow: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 0) {
+                    sectionHeader("Toolbar Order", symbol: "slider.horizontal.3")
+
+                    Spacer(minLength: 8)
+
+                    Button("Reset") {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            drawingPreferences.resetToolOrder()
+                        }
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(isDefaultToolOrder ? .secondary : .accentColor)
+                    .disabled(isDefaultToolOrder)
+                    .help("Restore the original tool order")
+                }
+
+                card(spacing: 2) {
+                    ForEach(Array(drawingPreferences.toolOrder.enumerated()), id: \.element) { position, tool in
+                        toolRow(tool, at: position)
+                    }
+                }
+
+                Text("Drag a tool or use the arrows. Number keys follow this order.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
                 sectionHeader("Drawing", symbol: "paintbrush.fill")
 
                 card {
@@ -91,6 +123,10 @@ struct SettingsWindow: View {
         )
     }
 
+    private var isDefaultToolOrder: Bool {
+        drawingPreferences.toolOrder == DrawingPreferences.defaultToolOrder
+    }
+
     private var shortcutKeyCaps: [String] {
         let shortcut = shortcutPreferences.shortcut
         return shortcut.modifiers.symbols.map(String.init) + [shortcut.key.name]
@@ -109,8 +145,11 @@ struct SettingsWindow: View {
         .padding(.leading, 2)
     }
 
-    private func card<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+    private func card<Content: View>(
+        spacing: CGFloat = 8,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: spacing) {
             content()
         }
         .padding(.horizontal, 10)
@@ -142,6 +181,124 @@ struct SettingsWindow: View {
                 RoundedRectangle(cornerRadius: 5)
                     .stroke(Color.primary.opacity(0.12), lineWidth: 1)
             )
+    }
+
+    private func toolRow(_ tool: DrawingTool, at position: Int) -> some View {
+        HStack(spacing: 8) {
+            Text(drawingPreferences.keyboardShortcut(for: tool) ?? "–")
+                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .foregroundColor(.secondary)
+                .frame(width: 16, height: 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.primary.opacity(0.07))
+                )
+
+            Image(systemName: tool.symbolName)
+                .font(.system(size: 12, weight: .semibold))
+                .frame(width: 16)
+
+            Text(tool.name)
+                .font(.system(size: 12))
+
+            Spacer(minLength: 8)
+
+            moveButton(
+                "chevron.up",
+                tool: tool,
+                destination: position - 1,
+                isEnabled: position > 0,
+                label: "Move \(tool.name) earlier"
+            )
+            moveButton(
+                "chevron.down",
+                tool: tool,
+                destination: position + 1,
+                isEnabled: position < drawingPreferences.toolOrder.count - 1,
+                label: "Move \(tool.name) later"
+            )
+
+            Image(systemName: "line.horizontal.3")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(.secondary)
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color(NSColor.windowBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.accentColor.opacity(dropTargetTool == tool ? 0.22 : 0))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(
+                    dropTargetTool == tool ? Color.accentColor : Color.primary.opacity(0.08),
+                    lineWidth: 1
+                )
+        )
+        .contentShape(Rectangle())
+        .onDrag { NSItemProvider(object: tool.rawValue as NSString) }
+        .onDrop(
+            of: [UTType.text],
+            isTargeted: Binding(
+                get: { dropTargetTool == tool },
+                set: { isTargeted in
+                    withAnimation(.easeOut(duration: 0.12)) {
+                        dropTargetTool = isTargeted ? tool : nil
+                    }
+                }
+            )
+        ) { providers in
+            dropTool(from: providers, to: position)
+        }
+    }
+
+    private func moveButton(
+        _ symbol: String,
+        tool: DrawingTool,
+        destination: Int,
+        isEnabled: Bool,
+        label: String
+    ) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.18)) {
+                drawingPreferences.moveTool(tool, to: destination)
+            }
+        } label: {
+            Image(systemName: symbol)
+                .font(.system(size: 9, weight: .bold))
+                .frame(width: 20, height: 18)
+                .background(
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(Color.primary.opacity(0.07))
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(PlainButtonStyle())
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.3)
+        .accessibilityLabel(label)
+    }
+
+    private func dropTool(from providers: [NSItemProvider], to destination: Int) -> Bool {
+        guard let provider = providers.first else { return false }
+
+        provider.loadObject(ofClass: NSString.self) { object, _ in
+            guard let rawTool = object as? NSString,
+                  let tool = DrawingTool(rawValue: rawTool as String) else { return }
+
+            DispatchQueue.main.async {
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    dropTargetTool = nil
+                    drawingPreferences.moveTool(tool, to: destination)
+                }
+            }
+        }
+
+        return true
     }
 
     private func modifierButton(

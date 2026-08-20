@@ -25,7 +25,7 @@ struct MiniToolbar: View {
 
             toolbarDivider
 
-            ForEach(StrokeColor.allCases) { color in
+            ForEach(preferences.colorPalette) { color in
                 Button {
                     preferences.setStrokeColor(color)
                 } label: {

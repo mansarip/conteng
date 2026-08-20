@@ -406,13 +406,14 @@ final class DrawingNSView: NSView {
     private func makeColorMenuItem() -> NSMenuItem {
         let colorMenu = NSMenu(title: "Color")
 
-        for color in StrokeColor.allCases {
+        for color in preferences.colorPalette {
             let item = NSMenuItem(
                 title: color.name,
                 action: #selector(setStrokeColor(_:)),
                 keyEquivalent: ""
             )
-            item.representedObject = color.rawValue
+            item.image = color.swatchImage
+            item.representedObject = color.hex
             item.state = color == preferences.strokeColor ? .on : .off
             item.target = self
             colorMenu.addItem(item)
@@ -463,7 +464,7 @@ final class DrawingNSView: NSView {
 
     @objc private func setStrokeColor(_ sender: NSMenuItem) {
         guard let rawColor = sender.representedObject as? String,
-              let color = StrokeColor(rawValue: rawColor) else { return }
+              let color = StrokeColor(hex: rawColor) else { return }
         preferences.setStrokeColor(color)
     }
 

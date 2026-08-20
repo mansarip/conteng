@@ -58,16 +58,13 @@ struct SettingsWindow: View {
 
                     Spacer(minLength: 8)
 
-                    Button("Reset") {
-                        withAnimation(.easeInOut(duration: 0.18)) {
-                            drawingPreferences.resetToolOrder()
-                        }
+                    linkButton(
+                        "Reset",
+                        isEnabled: !isDefaultToolOrder,
+                        help: "Restore the original tool order"
+                    ) {
+                        drawingPreferences.resetToolOrder()
                     }
-                    .buttonStyle(PlainButtonStyle())
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(isDefaultToolOrder ? .secondary : .accentColor)
-                    .disabled(isDefaultToolOrder)
-                    .help("Restore the original tool order")
                 }
 
                 card(spacing: 2) {
@@ -77,6 +74,49 @@ struct SettingsWindow: View {
                 }
 
                 Text("Drag a tool or use the arrows. Number keys follow this order.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 10) {
+                    sectionHeader("Colors", symbol: "paintpalette.fill")
+
+                    Spacer(minLength: 8)
+
+                    linkButton(
+                        "Add",
+                        isEnabled: drawingPreferences.canAddColor,
+                        help: "Add a color to the palette"
+                    ) {
+                        drawingPreferences.addSuggestedColor()
+                    }
+
+                    linkButton(
+                        "Reset",
+                        isEnabled: !isDefaultPalette,
+                        help: "Restore the original colors"
+                    ) {
+                        drawingPreferences.resetColorPalette()
+                    }
+                }
+
+                card(spacing: 6) {
+                    LazyVGrid(
+                        columns: Array(
+                            repeating: GridItem(.flexible(), spacing: 6),
+                            count: 4
+                        ),
+                        alignment: .leading,
+                        spacing: 6
+                    ) {
+                        ForEach(drawingPreferences.colorPalette.indices, id: \.self) { index in
+                            colorCell(at: index)
+                        }
+                    }
+                }
+
+                Text(paletteCaption)
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -125,6 +165,39 @@ struct SettingsWindow: View {
 
     private var isDefaultToolOrder: Bool {
         drawingPreferences.toolOrder == DrawingPreferences.defaultToolOrder
+    }
+
+    private var paletteCaption: String {
+        guard drawingPreferences.canAddColor else {
+            return "The palette is full at \(DrawingPreferences.maximumPaletteColors) colors."
+        }
+
+        return "Click a swatch to change it. R cycles through them while drawing."
+    }
+
+    private var isDefaultPalette: Bool {
+        drawingPreferences.colorPalette == DrawingPreferences.defaultColorPalette
+    }
+
+    private func paletteBinding(at index: Int) -> Binding<Color> {
+        Binding(
+            get: {
+                guard drawingPreferences.colorPalette.indices.contains(index) else { return .clear }
+                return Color(drawingPreferences.colorPalette[index].nsColor)
+            },
+            set: { newColor in
+                guard let nsColor = Self.nsColor(from: newColor) else { return }
+                drawingPreferences.replaceColor(at: index, with: StrokeColor(nsColor: nsColor))
+            }
+        )
+    }
+
+    private static func nsColor(from color: Color) -> NSColor? {
+        if #available(macOS 12.0, *) {
+            return NSColor(color)
+        }
+
+        return color.cgColor.flatMap(NSColor.init(cgColor:))
     }
 
     private var shortcutKeyCaps: [String] {
@@ -181,6 +254,50 @@ struct SettingsWindow: View {
                 RoundedRectangle(cornerRadius: 5)
                     .stroke(Color.primary.opacity(0.12), lineWidth: 1)
             )
+    }
+
+    private func colorCell(at index: Int) -> some View {
+        HStack(spacing: 2) {
+            ColorPicker("", selection: paletteBinding(at: index), supportsOpacity: false)
+                .labelsHidden()
+                .controlSize(.mini)
+                .help(drawingPreferences.colorPalette[index].name)
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    drawingPreferences.removeColor(at: index)
+                }
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundColor(.secondary)
+                    .frame(width: 14, height: 14)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(PlainButtonStyle())
+            .disabled(!drawingPreferences.canRemoveColor)
+            .opacity(drawingPreferences.canRemoveColor ? 1 : 0.3)
+            .help("Remove this color")
+            .accessibilityLabel("Remove \(drawingPreferences.colorPalette[index].name)")
+        }
+    }
+
+    private func linkButton(
+        _ title: String,
+        isEnabled: Bool,
+        help: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(title) {
+            withAnimation(.easeInOut(duration: 0.18)) {
+                action()
+            }
+        }
+        .buttonStyle(PlainButtonStyle())
+        .font(.system(size: 11, weight: .semibold))
+        .foregroundColor(isEnabled ? .accentColor : .secondary)
+        .disabled(!isEnabled)
+        .help(help)
     }
 
     private func toolRow(_ tool: DrawingTool, at position: Int) -> some View {

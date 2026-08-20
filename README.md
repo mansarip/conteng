@@ -12,9 +12,12 @@ A macOS screen annotation application that allows you to draw overlays on top of
 - **Multi-monitor support** - Draw independently across every connected display
 - **Global hotkey activation** - Press Option+Tab to toggle the overlay
 - **Multiple drawing tools** - Various stroke widths and colors
+- **Custom color palette** - Add up to eight colors with the system color picker
+- **Rearrangeable toolbar** - Put your most-used tools first, in any order
 - **Productivity tools** - Pen, translucent highlighter, stroke eraser, and arrows
 - **Floating toolbar** - Switch tools, colors, and widths without leaving the overlay
 - **Custom global shortcut** - Choose the activation key and modifier combination
+- **Optional auto-clear** - Wipe the canvas whenever you stop drawing
 - **Safe editing history** - Undo and redo strokes, including clearing the canvas
 - **Menu bar integration** - Easy access through the system menu bar
 - **Keyboard shortcuts** - Quick access to common functions
@@ -37,10 +40,10 @@ When the overlay is active:
 - **Esc** - Clear all drawings
 - **Cmd+Z** - Undo last stroke
 - **Cmd+Shift+Z** - Redo
-- **1 / 2 / 3 / 4** - Pen / Highlighter / Eraser / Arrow
+- **1 / 2 / 3 / 4** - Pick a tool by its position in the toolbar (set in Settings)
 - **W** - Decrease stroke width
 - **E** - Increase stroke width
-- **R** - Rotate through colors (Red → Blue → Green → Black)
+- **R** - Rotate through the colors in your palette
 - **Shift+Drag** - Draw a straight line
 
 ## Requirements
@@ -142,7 +145,7 @@ Conteng is built using:
 
 The app uses a hybrid SwiftUI/AppKit architecture to provide system-wide overlay capabilities while maintaining a modern Swift codebase.
 
-`DrawingDocument` owns a shared undo/redo history across display-specific overlay windows. `DrawingPreferences` provides one persisted source of truth for tool, stroke width, and color. `GlobalShortcutPreferences` persists and applies the configurable activation shortcut.
+`DrawingDocument` owns a shared undo/redo history across display-specific overlay windows. `DrawingPreferences` provides one persisted source of truth for the selected tool, stroke width, color, toolbar order, and color palette. `GlobalShortcutPreferences` persists and applies the configurable activation shortcut.
 
 ## Dependencies
 

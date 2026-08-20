@@ -25,22 +25,92 @@ enum DrawingTool: String, CaseIterable, Equatable, Identifiable {
     }
 }
 
-enum StrokeColor: String, CaseIterable, Equatable, Identifiable {
-    case red
-    case blue
-    case green
-    case black
+/// A concrete colour value. Strokes keep their own copy, so editing or removing a
+/// palette entry never repaints drawings that are already on screen.
+struct StrokeColor: Identifiable, Equatable, Hashable {
+    /// Normalised "#RRGGBB" — the value that is persisted and compared.
+    let hex: String
 
-    var id: String { rawValue }
-    var name: String { rawValue.capitalized }
+    var id: String { hex }
+    var name: String { Self.knownNames[hex] ?? hex }
+
+    private static let knownNames: [String: String] = [
+        "#FF0000": "Red",
+        "#0000FF": "Blue",
+        "#00FF00": "Green",
+        "#000000": "Black",
+        "#FFFFFF": "White",
+        "#FFFF00": "Yellow",
+        "#FF9500": "Orange",
+        "#FF00FF": "Magenta",
+        "#00FFFF": "Cyan"
+    ]
+
+    private static let legacyNames: [String: String] = [
+        "red": "#FF0000",
+        "blue": "#0000FF",
+        "green": "#00FF00",
+        "black": "#000000"
+    ]
+
+    init?(hex: String) {
+        var value = hex.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        if value.hasPrefix("#") { value.removeFirst() }
+        guard value.count == 6, value.allSatisfy(\.isHexDigit) else { return nil }
+        self.hex = "#\(value)"
+    }
+
+    init(nsColor: NSColor) {
+        guard let color = nsColor.usingColorSpace(.sRGB) else {
+            hex = "#000000"
+            return
+        }
+
+        func channel(_ value: CGFloat) -> Int {
+            Int((min(max(value, 0), 1) * 255).rounded())
+        }
+
+        hex = String(
+            format: "#%02X%02X%02X",
+            channel(color.redComponent),
+            channel(color.greenComponent),
+            channel(color.blueComponent)
+        )
+    }
+
+    /// Accepts the current hex form as well as the colour names stored by older versions.
+    init?(storedValue: String) {
+        self.init(hex: Self.legacyNames[storedValue.lowercased()] ?? storedValue)
+    }
 
     var nsColor: NSColor {
-        switch self {
-        case .red: .red
-        case .blue: .blue
-        case .green: .green
-        case .black: .black
-        }
+        let value = UInt32(hex.dropFirst(), radix: 16) ?? 0
+        return NSColor(
+            srgbRed: CGFloat((value >> 16) & 0xFF) / 255,
+            green: CGFloat((value >> 8) & 0xFF) / 255,
+            blue: CGFloat(value & 0xFF) / 255,
+            alpha: 1
+        )
+    }
+
+    /// Small rounded swatch used to label menu items, which cannot rely on colour names.
+    var swatchImage: NSImage {
+        let size = NSSize(width: 12, height: 12)
+        let image = NSImage(size: size)
+
+        image.lockFocus()
+        let path = NSBezierPath(
+            roundedRect: NSRect(origin: .zero, size: size).insetBy(dx: 0.5, dy: 0.5),
+            xRadius: 3,
+            yRadius: 3
+        )
+        nsColor.setFill()
+        path.fill()
+        NSColor.separatorColor.setStroke()
+        path.stroke()
+        image.unlockFocus()
+
+        return image
     }
 }
 
@@ -176,6 +246,12 @@ final class DrawingPreferences: ObservableObject {
     static let shared = DrawingPreferences()
     static let availableWidths: [CGFloat] = [2, 4, 5, 6, 7, 8, 10]
     static let defaultToolOrder = DrawingTool.allCases
+    static let defaultColorPalette: [StrokeColor] = ["#FF0000", "#0000FF", "#00FF00", "#000000"]
+        .compactMap(StrokeColor.init(hex:))
+    static let maximumPaletteColors = 8
+    static let suggestedColors: [StrokeColor] = [
+        "#FF9500", "#FFFF00", "#FF00FF", "#00FFFF", "#FFFFFF", "#8E44AD", "#1ABC9C", "#7F8C8D"
+    ].compactMap(StrokeColor.init(hex:))
 
     private enum Key {
         static let strokeWidth = "drawing.strokeWidth"
@@ -183,6 +259,7 @@ final class DrawingPreferences: ObservableObject {
         static let selectedTool = "drawing.selectedTool"
         static let clearAfterStop = "drawing.clearAfterStop"
         static let toolOrder = "drawing.toolOrder"
+        static let colorPalette = "drawing.colorPalette"
     }
 
     private let defaults: UserDefaults
@@ -192,6 +269,7 @@ final class DrawingPreferences: ObservableObject {
     @Published private(set) var selectedTool: DrawingTool
     @Published private(set) var clearsAfterStopDrawing: Bool
     @Published private(set) var toolOrder: [DrawingTool]
+    @Published private(set) var colorPalette: [StrokeColor]
 
     var canDecreaseStrokeWidth: Bool {
         guard let index = Self.availableWidths.firstIndex(of: strokeWidth) else { return false }
@@ -209,11 +287,14 @@ final class DrawingPreferences: ObservableObject {
         let savedWidth = CGFloat(defaults.double(forKey: Key.strokeWidth))
         strokeWidth = Self.availableWidths.contains(savedWidth) ? savedWidth : 5
 
+        let palette = Self.sanitizedPalette(defaults.stringArray(forKey: Key.colorPalette) ?? [])
+        colorPalette = palette
+
         if let rawColor = defaults.string(forKey: Key.strokeColor),
-           let savedColor = StrokeColor(rawValue: rawColor) {
+           let savedColor = StrokeColor(storedValue: rawColor) {
             strokeColor = savedColor
         } else {
-            strokeColor = .red
+            strokeColor = palette[0]
         }
 
         if let rawTool = defaults.string(forKey: Key.selectedTool),
@@ -271,6 +352,93 @@ final class DrawingPreferences: ObservableObject {
         notifyChange()
     }
 
+    var canAddColor: Bool { colorPalette.count < Self.maximumPaletteColors }
+    var canRemoveColor: Bool { colorPalette.count > 1 }
+
+    /// Keeps a stored palette usable: drops unreadable or repeated entries, enforces the
+    /// cap, and never leaves the palette empty.
+    private static func sanitizedPalette(_ rawColors: [String]) -> [StrokeColor] {
+        var palette: [StrokeColor] = []
+
+        for color in rawColors.compactMap(StrokeColor.init(hex:))
+        where !palette.contains(color) && palette.count < maximumPaletteColors {
+            palette.append(color)
+        }
+
+        return palette.isEmpty ? defaultColorPalette : palette
+    }
+
+    func addColor(_ color: StrokeColor) {
+        guard canAddColor, !colorPalette.contains(color) else {
+            setStrokeColor(color)
+            return
+        }
+
+        colorPalette.append(color)
+        persistPalette()
+        setStrokeColor(color)
+    }
+
+    /// Adds the first unused suggestion, giving the new swatch a colour worth keeping
+    /// even if the user never opens the picker.
+    func addSuggestedColor() {
+        guard canAddColor else { return }
+
+        let unused = { (color: StrokeColor) in !self.colorPalette.contains(color) }
+        guard let color = Self.suggestedColors.first(where: unused)
+            ?? Self.defaultColorPalette.first(where: unused) else { return }
+
+        addColor(color)
+    }
+
+    func replaceColor(at index: Int, with color: StrokeColor) {
+        guard colorPalette.indices.contains(index) else { return }
+
+        let replaced = colorPalette[index]
+        guard replaced != color else { return }
+        // Two identical swatches would collapse into one on the next launch.
+        guard !colorPalette.contains(color) else { return }
+
+        colorPalette[index] = color
+        persistPalette()
+
+        if strokeColor == replaced {
+            setStrokeColor(color)
+        } else {
+            notifyChange()
+        }
+    }
+
+    func removeColor(at index: Int) {
+        guard canRemoveColor, colorPalette.indices.contains(index) else { return }
+
+        let removed = colorPalette.remove(at: index)
+        persistPalette()
+
+        if strokeColor == removed {
+            setStrokeColor(colorPalette[min(index, colorPalette.count - 1)])
+        } else {
+            notifyChange()
+        }
+    }
+
+    func resetColorPalette() {
+        guard colorPalette != Self.defaultColorPalette else { return }
+
+        colorPalette = Self.defaultColorPalette
+        defaults.removeObject(forKey: Key.colorPalette)
+
+        if colorPalette.contains(strokeColor) {
+            notifyChange()
+        } else {
+            setStrokeColor(colorPalette[0])
+        }
+    }
+
+    private func persistPalette() {
+        defaults.set(colorPalette.map(\.hex), forKey: Key.colorPalette)
+    }
+
     func setStrokeWidth(_ width: CGFloat) {
         guard Self.availableWidths.contains(width), width != strokeWidth else { return }
         strokeWidth = width
@@ -293,14 +461,17 @@ final class DrawingPreferences: ObservableObject {
     func setStrokeColor(_ color: StrokeColor) {
         guard color != strokeColor else { return }
         strokeColor = color
-        defaults.set(color.rawValue, forKey: Key.strokeColor)
+        defaults.set(color.hex, forKey: Key.strokeColor)
         notifyChange()
     }
 
     func rotateStrokeColor() {
-        guard let index = StrokeColor.allCases.firstIndex(of: strokeColor) else { return }
-        let nextIndex = (index + 1) % StrokeColor.allCases.count
-        setStrokeColor(StrokeColor.allCases[nextIndex])
+        guard let index = colorPalette.firstIndex(of: strokeColor) else {
+            setStrokeColor(colorPalette[0])
+            return
+        }
+
+        setStrokeColor(colorPalette[(index + 1) % colorPalette.count])
     }
 
     func setSelectedTool(_ tool: DrawingTool) {

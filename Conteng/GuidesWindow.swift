@@ -37,14 +37,14 @@ struct GuidesWindow: View {
 • 1 / 2 / 3 / 4 - Pick a tool by its position in the toolbar
 • W - Make stroke thinner
 • E - Make stroke thicker
-• R - Change color (Red → Blue → Green → Black)
+• R - Cycle through the colors in your palette
 • Shift+Drag - Draw a straight line
 """
                     )
                     
                     GuideSection(
                         title: "Menu Options",
-                        content: "Click the menu bar icon for drawing options, or right-click the canvas for quick access. Open Settings to choose your global shortcut, rearrange the toolbar, and decide whether drawings are cleared when you stop drawing. Tool, width, color, and shortcut selections are remembered between launches."
+                        content: "Click the menu bar icon for drawing options, or right-click the canvas for quick access. Open Settings to choose your global shortcut, rearrange the toolbar, build your color palette, and decide whether drawings are cleared when you stop drawing. Tool, width, color, and shortcut selections are remembered between launches."
                     )
                     
                     GuideSection(
@@ -53,6 +53,7 @@ struct GuidesWindow: View {
 • The overlay works across all connected displays and desktop spaces
 • You can draw while in fullscreen mode
 • Reorder the tools in Settings to put your favourite one first
+• Add up to eight colors in Settings, picked with the system color panel
 • Use different colors and stroke widths for better annotations
 • Hiding the overlay keeps your drawings, unless "Clear after stop drawing" is turned on in Settings
 • If you clear by mistake, press Cmd+Z to restore everything

@@ -180,13 +180,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func makeColorMenuItem() -> NSMenuItem {
         let colorMenu = NSMenu(title: "Color")
 
-        for color in StrokeColor.allCases {
+        for color in drawingPreferences.colorPalette {
             let item = NSMenuItem(
                 title: color.name,
                 action: #selector(setStrokeColor(_:)),
                 keyEquivalent: ""
             )
-            item.representedObject = color.rawValue
+            item.image = color.swatchImage
+            item.representedObject = color.hex
             item.state = color == drawingPreferences.strokeColor ? .on : .off
             item.target = self
             colorMenu.addItem(item)
@@ -334,7 +335,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func setStrokeColor(_ sender: NSMenuItem) {
         guard let rawColor = sender.representedObject as? String,
-              let color = StrokeColor(rawValue: rawColor) else { return }
+              let color = StrokeColor(hex: rawColor) else { return }
         drawingPreferences.setStrokeColor(color)
     }
 

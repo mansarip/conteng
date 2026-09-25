@@ -232,10 +232,6 @@ struct SettingsWindow: View {
             RoundedRectangle(cornerRadius: 8)
                 .fill(Color(NSColor.controlBackgroundColor))
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.primary.opacity(0.1), lineWidth: 1)
-        )
     }
 
     private func keyCap(_ text: String) -> some View {

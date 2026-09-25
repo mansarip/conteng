@@ -79,6 +79,29 @@ struct SettingsWindow: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
+                sectionHeader("Toolbar Opacity", symbol: "circle.lefthalf.filled")
+
+                card {
+                    HStack(spacing: 10) {
+                        Slider(
+                            value: toolbarOpacityBinding,
+                            in: DrawingPreferences.toolbarOpacityRange
+                        )
+                        .controlSize(.small)
+                        .accessibilityLabel("Toolbar opacity")
+
+                        Text("\(Int((drawingPreferences.toolbarOpacity * 100).rounded()))%")
+                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .frame(width: 40, alignment: .trailing)
+                    }
+                }
+
+                Text("The toolbar turns fully solid while the pointer is over it.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 10) {
                     sectionHeader("Colors", symbol: "paintpalette.fill")
 
@@ -160,6 +183,13 @@ struct SettingsWindow: View {
         Binding(
             get: { drawingPreferences.clearsAfterStopDrawing },
             set: { drawingPreferences.setClearsAfterStopDrawing($0) }
+        )
+    }
+
+    private var toolbarOpacityBinding: Binding<Double> {
+        Binding(
+            get: { drawingPreferences.toolbarOpacity },
+            set: { drawingPreferences.setToolbarOpacity($0) }
         )
     }
 

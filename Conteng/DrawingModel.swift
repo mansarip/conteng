@@ -252,6 +252,7 @@ final class DrawingPreferences: ObservableObject {
     static let suggestedColors: [StrokeColor] = [
         "#FF9500", "#FFFF00", "#FF00FF", "#00FFFF", "#FFFFFF", "#8E44AD", "#1ABC9C", "#7F8C8D"
     ].compactMap(StrokeColor.init(hex:))
+    static let toolbarOpacityRange: ClosedRange<Double> = 0.2...1
 
     private enum Key {
         static let strokeWidth = "drawing.strokeWidth"
@@ -260,6 +261,7 @@ final class DrawingPreferences: ObservableObject {
         static let clearAfterStop = "drawing.clearAfterStop"
         static let toolOrder = "drawing.toolOrder"
         static let colorPalette = "drawing.colorPalette"
+        static let toolbarOpacity = "drawing.toolbarOpacity"
     }
 
     private let defaults: UserDefaults
@@ -270,6 +272,7 @@ final class DrawingPreferences: ObservableObject {
     @Published private(set) var clearsAfterStopDrawing: Bool
     @Published private(set) var toolOrder: [DrawingTool]
     @Published private(set) var colorPalette: [StrokeColor]
+    @Published private(set) var toolbarOpacity: Double
 
     var canDecreaseStrokeWidth: Bool {
         guard let index = Self.availableWidths.firstIndex(of: strokeWidth) else { return false }
@@ -306,6 +309,15 @@ final class DrawingPreferences: ObservableObject {
 
         clearsAfterStopDrawing = defaults.bool(forKey: Key.clearAfterStop)
         toolOrder = Self.sanitizedToolOrder(defaults.stringArray(forKey: Key.toolOrder) ?? [])
+
+        let savedOpacity = defaults.object(forKey: Key.toolbarOpacity) as? Double
+        toolbarOpacity = savedOpacity.map(Self.sanitizedToolbarOpacity) ?? 1
+    }
+
+    /// Rounds to whole percents so the stored value matches the one shown in Settings.
+    private static func sanitizedToolbarOpacity(_ opacity: Double) -> Double {
+        let clamped = min(max(opacity, toolbarOpacityRange.lowerBound), toolbarOpacityRange.upperBound)
+        return (clamped * 100).rounded() / 100
     }
 
     /// Keeps a stored order usable after tools are added, removed, or duplicated.
@@ -486,6 +498,15 @@ final class DrawingPreferences: ObservableObject {
         clearsAfterStopDrawing = enabled
         defaults.set(enabled, forKey: Key.clearAfterStop)
         notifyChange()
+    }
+
+    /// Only the SwiftUI toolbar reads this, so it skips the change notification that
+    /// redraws canvases and rebuilds the menu on every slider tick.
+    func setToolbarOpacity(_ opacity: Double) {
+        let sanitized = Self.sanitizedToolbarOpacity(opacity)
+        guard sanitized != toolbarOpacity else { return }
+        toolbarOpacity = sanitized
+        defaults.set(sanitized, forKey: Key.toolbarOpacity)
     }
 
     private func notifyChange() {

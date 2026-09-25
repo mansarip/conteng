@@ -3,6 +3,8 @@ import SwiftUI
 struct MiniToolbar: View {
     @ObservedObject var preferences: DrawingPreferences
 
+    @State private var isHovering = false
+
     var body: some View {
         HStack(spacing: 6) {
             ForEach(preferences.toolOrder) { tool in
@@ -99,6 +101,11 @@ struct MiniToolbar: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.primary.opacity(0.12), lineWidth: 1)
         )
+        // Fade the toolbar as one layer so the background doesn't show through each icon.
+        .compositingGroup()
+        .opacity(isHovering ? 1 : preferences.toolbarOpacity)
+        .animation(.easeOut(duration: 0.15), value: isHovering)
+        .onHover { isHovering = $0 }
     }
 
     private func toolHelp(for tool: DrawingTool) -> String {

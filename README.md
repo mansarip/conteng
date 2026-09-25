@@ -15,7 +15,7 @@ A macOS screen annotation application that allows you to draw overlays on top of
 - **Custom color palette** - Add up to eight colors with the system color picker
 - **Rearrangeable toolbar** - Put your most-used tools first, in any order
 - **Productivity tools** - Pen, translucent highlighter, stroke eraser, and arrows
-- **Floating toolbar** - Switch tools, colors, and widths without leaving the overlay
+- **Floating toolbar** - Switch tools, colors, and widths without leaving the overlay, with adjustable opacity that turns solid on hover
 - **Custom global shortcut** - Choose the activation key and modifier combination
 - **Optional auto-clear** - Wipe the canvas whenever you stop drawing
 - **Safe editing history** - Undo and redo strokes, including clearing the canvas
@@ -144,7 +144,7 @@ Conteng is built using:
 
 The app uses a hybrid SwiftUI/AppKit architecture to provide system-wide overlay capabilities while maintaining a modern Swift codebase.
 
-`DrawingDocument` owns a shared undo/redo history across display-specific overlay windows. `DrawingPreferences` provides one persisted source of truth for the selected tool, stroke width, color, toolbar order, and color palette. `GlobalShortcutPreferences` persists and applies the configurable activation shortcut.
+`DrawingDocument` owns a shared undo/redo history across display-specific overlay windows. `DrawingPreferences` provides one persisted source of truth for the selected tool, stroke width, color, toolbar order, toolbar opacity, and color palette. `GlobalShortcutPreferences` persists and applies the configurable activation shortcut.
 
 ## Dependencies
 

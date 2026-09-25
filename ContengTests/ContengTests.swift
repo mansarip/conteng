@@ -65,6 +65,21 @@ struct ContengTests {
         #expect(restoredPreferences.selectedTool == .highlighter)
     }
 
+    @Test func toolbarOpacityPersistsWithinItsRange() {
+        let suiteName = "ContengOpacityTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let preferences = DrawingPreferences(defaults: defaults)
+        #expect(preferences.toolbarOpacity == 1)
+
+        preferences.setToolbarOpacity(0.456)
+        #expect(DrawingPreferences(defaults: defaults).toolbarOpacity == 0.46)
+
+        preferences.setToolbarOpacity(0)
+        #expect(DrawingPreferences(defaults: defaults).toolbarOpacity == DrawingPreferences.toolbarOpacityRange.lowerBound)
+    }
+
     @Test func strokeWidthButtonsMoveThroughEveryAvailableWidth() {
         let suiteName = "ContengWidthTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -164,4 +179,10 @@ struct ContengTests {
             color: .red
         )
     }
+}
+
+private extension StrokeColor {
+    static let red = StrokeColor(hex: "#FF0000")!
+    static let green = StrokeColor(hex: "#00FF00")!
+    static let blue = StrokeColor(hex: "#0000FF")!
 }

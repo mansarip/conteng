@@ -77,9 +77,7 @@ When the overlay is active:
    build/Build/Products/Release/Conteng.app
    ```
 
-#### Creating a Distributable App
-To create an executable app that can be distributed:
-
+#### Building an App for Your Own Mac
 1. Build for release:
    ```bash
    xcodebuild -project Conteng.xcodeproj -scheme Conteng -configuration Release -derivedDataPath ./build
@@ -90,10 +88,24 @@ To create an executable app that can be distributed:
    ./build/Build/Products/Release/Conteng.app
    ```
 
-3. Copy the app to your Applications folder or distribute as needed:
+3. Copy the app to your Applications folder:
    ```bash
    cp -r ./build/Build/Products/Release/Conteng.app /Applications/
    ```
+
+This build is ad-hoc signed, which is fine for running it yourself.
+
+#### Creating a Release
+
+Official releases are signed with the maintainer's self-signed `Conteng Self-Signed` certificate, so every version shares one code signing identity and macOS treats an update as the same app. To build one:
+
+```bash
+scripts/release.sh
+```
+
+The script builds a universal app, signs it, checks the signature, and writes `dist/Conteng-<version>-macOS-universal.zip` along with the SHA-256 checksum to publish in the release notes.
+
+The certificate and its private key live only in the maintainer's keychain. Keep an exported `.p12` backup somewhere safe and never commit it: releases signed with a new certificate get a new identity. On a new Mac, double-click the backup to import it. Set `CONTENG_SIGNING_IDENTITY` to sign with a certificate of another name.
 
 ## Running Tests
 
@@ -122,7 +134,7 @@ xcodebuild test -project Conteng.xcodeproj -scheme Conteng -destination 'platfor
 
 ### Gatekeeper Notice
 
-Conteng is free and open-source software distributed without an Apple Developer Program account. The downloadable app is ad-hoc signed, but it is **not signed with an Apple Developer ID and is not notarized by Apple**. macOS will therefore warn that it cannot verify the developer or check the app for malicious software.
+Conteng is free and open-source software distributed without an Apple Developer Program account. The downloadable app is signed with the project's own self-signed certificate, but it is **not signed with an Apple Developer ID and is not notarized by Apple**. macOS will therefore warn that it cannot verify the developer or check the app for malicious software.
 
 Only continue if you downloaded Conteng from this repository and its SHA-256 checksum matches the release notes. After attempting to open the app once:
 
@@ -131,7 +143,15 @@ Only continue if you downloaded Conteng from this repository and its SHA-256 che
 3. Scroll to the Security section and click **Open Anyway** for Conteng.
 4. Confirm by clicking **Open**.
 
-This creates an exception for Conteng without disabling Gatekeeper globally. See Apple's guide on [safely opening apps on macOS](https://support.apple.com/en-us/102445) for the security implications and current instructions.
+This creates an exception for Conteng without disabling Gatekeeper globally.
+
+To confirm that a copy was signed by this project, check its certificate fingerprint:
+
+```bash
+codesign -d -r- /Applications/Conteng.app
+```
+
+The output should include `certificate leaf = H"e35f89e9dcffacd913518a94e48c80a731640e6e"`. Every release from 1.6 onward carries this same fingerprint. See Apple's guide on [safely opening apps on macOS](https://support.apple.com/en-us/102445) for the security implications and current instructions.
 
 ## Architecture
 

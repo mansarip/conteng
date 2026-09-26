@@ -23,6 +23,11 @@ enum DrawingTool: String, CaseIterable, Equatable, Identifiable {
         case .arrow: "arrow.up.right"
         }
     }
+
+    /// The highlighter is translucent, so an outline underneath would bleach it.
+    var supportsOutline: Bool {
+        self == .pen || self == .arrow
+    }
 }
 
 /// A concrete colour value. Strokes keep their own copy, so editing or removing a
@@ -114,29 +119,43 @@ struct StrokeColor: Identifiable, Equatable, Hashable {
     }
 }
 
+/// A contrasting border traced around a stroke. `width` is added on each side.
+struct StrokeOutline: Equatable {
+    var width: CGFloat
+    var color: StrokeColor
+}
+
 struct Stroke: Identifiable, Equatable {
     let id: UUID
     var points: [CGPoint]
     var width: CGFloat
     var color: StrokeColor
     var tool: DrawingTool
+    var outline: StrokeOutline?
 
     init(
         id: UUID = UUID(),
         points: [CGPoint],
         width: CGFloat,
         color: StrokeColor,
-        tool: DrawingTool = .pen
+        tool: DrawingTool = .pen,
+        outline: StrokeOutline? = nil
     ) {
         self.id = id
         self.points = points
         self.width = width
         self.color = color
         self.tool = tool
+        self.outline = outline
     }
 
     var renderedWidth: CGFloat {
         tool == .highlighter ? max(width * 3, 12) : width
+    }
+
+    /// The full visible width, including the outline on both sides.
+    var outlinedWidth: CGFloat {
+        renderedWidth + 2 * (outline?.width ?? 0)
     }
 }
 
@@ -253,6 +272,9 @@ final class DrawingPreferences: ObservableObject {
         "#FF9500", "#FFFF00", "#FF00FF", "#00FFFF", "#FFFFFF", "#8E44AD", "#1ABC9C", "#7F8C8D"
     ].compactMap(StrokeColor.init(hex:))
     static let toolbarOpacityRange: ClosedRange<Double> = 0.2...1
+    static let availableOutlineWidths: [CGFloat] = [1, 2, 3, 4]
+    static let defaultOutlineWidth: CGFloat = 2
+    static let defaultOutlineColor = StrokeColor(hex: "#FFFFFF")!
 
     private enum Key {
         static let strokeWidth = "drawing.strokeWidth"
@@ -262,6 +284,9 @@ final class DrawingPreferences: ObservableObject {
         static let toolOrder = "drawing.toolOrder"
         static let colorPalette = "drawing.colorPalette"
         static let toolbarOpacity = "drawing.toolbarOpacity"
+        static let outlinesStrokes = "drawing.outlinesStrokes"
+        static let outlineWidth = "drawing.outlineWidth"
+        static let outlineColor = "drawing.outlineColor"
     }
 
     private let defaults: UserDefaults
@@ -273,6 +298,9 @@ final class DrawingPreferences: ObservableObject {
     @Published private(set) var toolOrder: [DrawingTool]
     @Published private(set) var colorPalette: [StrokeColor]
     @Published private(set) var toolbarOpacity: Double
+    @Published private(set) var outlinesStrokes: Bool
+    @Published private(set) var outlineWidth: CGFloat
+    @Published private(set) var outlineColor: StrokeColor
 
     var canDecreaseStrokeWidth: Bool {
         guard let index = Self.availableWidths.firstIndex(of: strokeWidth) else { return false }
@@ -312,6 +340,16 @@ final class DrawingPreferences: ObservableObject {
 
         let savedOpacity = defaults.object(forKey: Key.toolbarOpacity) as? Double
         toolbarOpacity = savedOpacity.map(Self.sanitizedToolbarOpacity) ?? 1
+
+        outlinesStrokes = defaults.bool(forKey: Key.outlinesStrokes)
+
+        let savedOutlineWidth = CGFloat(defaults.double(forKey: Key.outlineWidth))
+        outlineWidth = Self.availableOutlineWidths.contains(savedOutlineWidth)
+            ? savedOutlineWidth
+            : Self.defaultOutlineWidth
+
+        outlineColor = defaults.string(forKey: Key.outlineColor)
+            .flatMap(StrokeColor.init(hex:)) ?? Self.defaultOutlineColor
     }
 
     /// Rounds to whole percents so the stored value matches the one shown in Settings.
@@ -509,6 +547,33 @@ final class DrawingPreferences: ObservableObject {
         defaults.set(sanitized, forKey: Key.toolbarOpacity)
     }
 
+    /// The outline a new stroke drawn with `tool` should carry, if any.
+    func outline(for tool: DrawingTool) -> StrokeOutline? {
+        guard outlinesStrokes, tool.supportsOutline else { return nil }
+        return StrokeOutline(width: outlineWidth, color: outlineColor)
+    }
+
+    func setOutlinesStrokes(_ enabled: Bool) {
+        guard enabled != outlinesStrokes else { return }
+        outlinesStrokes = enabled
+        defaults.set(enabled, forKey: Key.outlinesStrokes)
+        notifyChange()
+    }
+
+    func setOutlineWidth(_ width: CGFloat) {
+        guard Self.availableOutlineWidths.contains(width), width != outlineWidth else { return }
+        outlineWidth = width
+        defaults.set(Double(width), forKey: Key.outlineWidth)
+        notifyChange()
+    }
+
+    func setOutlineColor(_ color: StrokeColor) {
+        guard color != outlineColor else { return }
+        outlineColor = color
+        defaults.set(color.hex, forKey: Key.outlineColor)
+        notifyChange()
+    }
+
     private func notifyChange() {
         NotificationCenter.default.post(name: .drawingPreferencesDidChange, object: self)
     }
@@ -517,7 +582,7 @@ final class DrawingPreferences: ObservableObject {
 enum StrokeHitTester {
     static func contains(_ point: CGPoint, radius: CGFloat, in stroke: Stroke) -> Bool {
         guard let firstPoint = stroke.points.first else { return false }
-        let hitRadius = radius + stroke.renderedWidth / 2
+        let hitRadius = radius + stroke.outlinedWidth / 2
 
         if stroke.points.count == 1 {
             return distance(from: point, to: firstPoint) <= hitRadius

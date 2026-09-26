@@ -44,7 +44,7 @@ struct GuidesWindow: View {
                     
                     GuideSection(
                         title: "Menu Options",
-                        content: "Click the menu bar icon for drawing options, or right-click the canvas for quick access. Open Settings to choose your global shortcut, rearrange the toolbar, set how see-through it is, build your color palette, and decide whether drawings are cleared when you stop drawing. Tool, width, color, and shortcut selections are remembered between launches."
+                        content: "Click the menu bar icon for drawing options, or right-click the canvas for quick access. Open Settings to choose your global shortcut, rearrange the toolbar, set how see-through it is, build your color palette, outline your strokes, and decide whether drawings are cleared when you stop drawing. Tool, width, color, and shortcut selections are remembered between launches."
                     )
                     
                     GuideSection(
@@ -55,6 +55,7 @@ struct GuidesWindow: View {
 • Reorder the tools in Settings to put your favourite one first
 • Add up to eight colors in Settings, picked with the system color panel
 • Use different colors and stroke widths for better annotations
+• Turn on stroke outlines in Settings to keep drawings readable on busy or dark backgrounds
 • Hiding the overlay keeps your drawings, unless "Clear after stop drawing" is turned on in Settings
 • If you clear by mistake, press Cmd+Z to restore everything
 """

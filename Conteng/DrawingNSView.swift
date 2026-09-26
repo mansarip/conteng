@@ -162,7 +162,8 @@ final class DrawingNSView: NSView {
                 points: [point],
                 width: preferences.strokeWidth,
                 color: preferences.strokeColor,
-                tool: preferences.selectedTool
+                tool: preferences.selectedTool,
+                outline: preferences.outline(for: preferences.selectedTool)
             )
         }
         cursorLocation = nil
@@ -266,6 +267,10 @@ final class DrawingNSView: NSView {
                 indicator.lineWidth = 1.5
                 indicator.stroke()
             } else {
+                if let outline = preferences.outline(for: preferences.selectedTool) {
+                    outline.color.nsColor.setFill()
+                    NSBezierPath(ovalIn: indicatorRect.insetBy(dx: -outline.width, dy: -outline.width)).fill()
+                }
                 preferences.strokeColor.nsColor.setFill()
                 indicator.fill()
             }
@@ -282,6 +287,10 @@ final class DrawingNSView: NSView {
                     width: radius * 2,
                     height: radius * 2
                 )
+                if let outline = stroke.outline {
+                    outline.color.nsColor.setFill()
+                    NSBezierPath(ovalIn: dotRect.insetBy(dx: -outline.width, dy: -outline.width)).fill()
+                }
                 let color = stroke.tool == .highlighter
                     ? stroke.color.nsColor.withAlphaComponent(0.32)
                     : stroke.color.nsColor
@@ -300,13 +309,21 @@ final class DrawingNSView: NSView {
             path = StrokePathBuilder.makePath(points: stroke.points)
         }
 
+        path.lineCapStyle = .round
+        path.lineJoinStyle = .round
+
+        // Painting the whole outline first keeps self-crossing strokes free of seams.
+        if let outline = stroke.outline {
+            outline.color.nsColor.setStroke()
+            path.lineWidth = stroke.outlinedWidth
+            path.stroke()
+        }
+
         let color = stroke.tool == .highlighter
             ? stroke.color.nsColor.withAlphaComponent(0.32)
             : stroke.color.nsColor
         color.setStroke()
         path.lineWidth = stroke.renderedWidth
-        path.lineCapStyle = .round
-        path.lineJoinStyle = .round
         path.stroke()
     }
 

@@ -142,6 +142,43 @@ struct ContengTests {
         #expect(!StrokeHitTester.contains(CGPoint(x: 15, y: 20), radius: 3, in: highlighter))
     }
 
+    @Test func outlinePreferencesPersistAndSkipTheHighlighter() {
+        let suiteName = "ContengOutlineTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let preferences = DrawingPreferences(defaults: defaults)
+        #expect(!preferences.outlinesStrokes)
+        #expect(preferences.outline(for: .pen) == nil)
+
+        preferences.setOutlinesStrokes(true)
+        preferences.setOutlineWidth(3)
+        preferences.setOutlineColor(.blue)
+        preferences.setOutlineWidth(9)
+
+        let restoredPreferences = DrawingPreferences(defaults: defaults)
+        let expectedOutline = StrokeOutline(width: 3, color: .blue)
+        #expect(restoredPreferences.outline(for: .pen) == expectedOutline)
+        #expect(restoredPreferences.outline(for: .arrow) == expectedOutline)
+        #expect(restoredPreferences.outline(for: .highlighter) == nil)
+        #expect(restoredPreferences.outline(for: .eraser) == nil)
+    }
+
+    @Test func eraserHitTestingIncludesTheOutline() {
+        let outlinedStroke = Stroke(
+            points: [CGPoint(x: 0, y: 0), CGPoint(x: 30, y: 0)],
+            width: 4,
+            color: .red,
+            outline: StrokeOutline(width: 4, color: .green)
+        )
+
+        var plainStroke = outlinedStroke
+        plainStroke.outline = nil
+
+        #expect(StrokeHitTester.contains(CGPoint(x: 15, y: 6.5), radius: 1, in: outlinedStroke))
+        #expect(!StrokeHitTester.contains(CGPoint(x: 15, y: 6.5), radius: 1, in: plainStroke))
+    }
+
     @Test func globalShortcutPersistsAndRequiresAModifier() {
         let suiteName = "ContengShortcutTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!

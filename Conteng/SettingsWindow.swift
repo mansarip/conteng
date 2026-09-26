@@ -145,6 +145,72 @@ struct SettingsWindow: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
+                sectionHeader("Outline", symbol: "scribble.variable")
+
+                card {
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Outline strokes")
+                            Text("Trace a border around pen and arrow strokes.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Spacer(minLength: 0)
+
+                        Toggle("Outline strokes", isOn: outlinesStrokesBinding)
+                            .labelsHidden()
+                            .toggleStyle(SwitchToggleStyle())
+                            .controlSize(.small)
+                    }
+
+                    Divider()
+
+                    HStack(spacing: 12) {
+                        outlinePreview
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 8) {
+                                Text("Width")
+                                    .font(.system(size: 12))
+
+                                Spacer(minLength: 8)
+
+                                Picker("Width", selection: outlineWidthBinding) {
+                                    ForEach(DrawingPreferences.availableOutlineWidths, id: \.self) { width in
+                                        Text("\(Int(width))").tag(width)
+                                    }
+                                }
+                                .labelsHidden()
+                                .pickerStyle(SegmentedPickerStyle())
+                                .controlSize(.small)
+                                .frame(width: 128)
+                                .help("Border thickness on each side, in px")
+                            }
+
+                            HStack(spacing: 8) {
+                                Text("Color")
+                                    .font(.system(size: 12))
+
+                                Spacer(minLength: 8)
+
+                                ColorPicker("Color", selection: outlineColorBinding, supportsOpacity: false)
+                                    .labelsHidden()
+                                    .controlSize(.mini)
+                                    .help(drawingPreferences.outlineColor.name)
+                            }
+                        }
+                        .disabled(!drawingPreferences.outlinesStrokes)
+                        .opacity(drawingPreferences.outlinesStrokes ? 1 : 0.45)
+                    }
+                }
+
+                Text("Changes apply to new strokes. The highlighter is never outlined.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
                 sectionHeader("Drawing", symbol: "paintbrush.fill")
 
                 card {
@@ -190,6 +256,30 @@ struct SettingsWindow: View {
         Binding(
             get: { drawingPreferences.toolbarOpacity },
             set: { drawingPreferences.setToolbarOpacity($0) }
+        )
+    }
+
+    private var outlinesStrokesBinding: Binding<Bool> {
+        Binding(
+            get: { drawingPreferences.outlinesStrokes },
+            set: { drawingPreferences.setOutlinesStrokes($0) }
+        )
+    }
+
+    private var outlineWidthBinding: Binding<CGFloat> {
+        Binding(
+            get: { drawingPreferences.outlineWidth },
+            set: { drawingPreferences.setOutlineWidth($0) }
+        )
+    }
+
+    private var outlineColorBinding: Binding<Color> {
+        Binding(
+            get: { Color(drawingPreferences.outlineColor.nsColor) },
+            set: { newColor in
+                guard let nsColor = Self.nsColor(from: newColor) else { return }
+                drawingPreferences.setOutlineColor(StrokeColor(nsColor: nsColor))
+            }
         )
     }
 
@@ -280,6 +370,41 @@ struct SettingsWindow: View {
                 RoundedRectangle(cornerRadius: 5)
                     .stroke(Color.primary.opacity(0.12), lineWidth: 1)
             )
+    }
+
+    /// A sample stroke in the current color and width, drawn on a neutral gray so both
+    /// light and dark outlines stay visible.
+    private var outlinePreview: some View {
+        let strokeWidth = drawingPreferences.strokeWidth
+        let outline = drawingPreferences.outline(for: .pen)
+
+        return ZStack {
+            if let outline {
+                PreviewStrokeShape()
+                    .stroke(
+                        Color(outline.color.nsColor),
+                        style: StrokeStyle(
+                            lineWidth: strokeWidth + outline.width * 2,
+                            lineCap: .round,
+                            lineJoin: .round
+                        )
+                    )
+            }
+
+            PreviewStrokeShape()
+                .stroke(
+                    Color(drawingPreferences.strokeColor.nsColor),
+                    style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round, lineJoin: .round)
+                )
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 11)
+        .frame(width: 76, height: 50)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color(white: 0.55))
+        )
+        .accessibilityHidden(true)
     }
 
     private func colorCell(at index: Int) -> some View {
@@ -468,5 +593,19 @@ struct SettingsWindow: View {
         .help(name)
         .accessibilityLabel(name)
         .accessibilityAddTraits(isEnabled ? .isSelected : [])
+    }
+}
+
+/// A gentle S-curve that stands in for a freehand stroke in the outline preview.
+private struct PreviewStrokeShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.addCurve(
+            to: CGPoint(x: rect.maxX, y: rect.minY),
+            control1: CGPoint(x: rect.midX + rect.width * 0.1, y: rect.maxY),
+            control2: CGPoint(x: rect.midX - rect.width * 0.1, y: rect.minY)
+        )
+        return path
     }
 }
